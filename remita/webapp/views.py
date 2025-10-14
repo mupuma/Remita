@@ -7,6 +7,7 @@ from itertools import groupby
 from operator import attrgetter
 from typing import List, Dict, Any, Optional, Tuple
 
+from django.utils.timezone import now
 from django.views.decorators.csrf import csrf_exempt
 
 from _decimal import Decimal
@@ -28,12 +29,7 @@ from .models import ProcessedDeposits, BankDetails, Users, UserLoginHistory, App
 import requests
 import pandas as pd
 
-URL = "http://41.173.23.122:8990/api/json/commercials/zicb/banking"
-IFT_KEY = "wmdTRHHpCAqgpCMMBfQUGZzpvOaOWmIFuNElwQBeuyyeRfHlRadnHSbMWimMZfPFhKIQEEgFPjkeJgHRwbTErvAZRlLJrVNhqSQRknxXpZhlsdzAuTTZtPZHFJOsvWtIRreHzFjPSEkwmGNdsOCMYipktXBeMkYEoWwFobzrUJRVJXeBWBveZYqirlbVlcwRXDdRJSIoFUMtxjFcbjFvxEKlmVzdjIpGWrqegWDOZQMOqLwSXsdBYjhkvcbQERolchgYpZbrmYRSMUFIHfiSBESXyVIeUAcXAhIcQAAQjWOVoZhuURxJNKRFUNiSMLOnIDwxaesFAwJPuZHbbKeMDxXzRQWaGCoaqKVjZshMpHVcEcncAZeKiioptRnpLAvmGHlrAXxSkaHgpWaqitRvYGOWDDMIxzsccEHpOfwsAfyZpCJyPRcpwiuCUTRRyOspSpWvFVIrHZxnzSizXkkVZtlhPeSYBrxplbhoAFYAPmxaZkAsNjQphlcfwmaZKzWreSkBpbGKrCcllzDcyibtGnbSlqqFZGIWFpokiyKVmcUaHDitetRwNMdksycsCsGTTiNysYVbeqLPFuGPTdrzfsMZZRQkAHqmyuYOMxQeEvpXibFylxPaoeaTXVWAVozTfdSIuufLgoADbvtDTpvpDhMiMcmPIIICEyeHpjyLGGFwqhBeSkVvYuQLSnHnoMlMZwCKRXzCXVjkcxEYCYflOdImrjPlMYzRNQjaCaMhhpBJTWoRDpQGaIhIQcsVAyHMtYIlRwEhGpnXZTFxshsxyDTBHPxaSKoPuHejMLQYIXyiMLtPfFJfZXYNAXfDXstXEBIHgqvYZAlogYbMPVIkDCceNNuaxkrRTAtcZGESKsRuPGOrukdHkdGaAGsbTSAgLXZmCkowppFOWZjgIJPiySyeeQOIQOfmcEyPWpByRBUxGmCnuOFbmbXEUBuuROdJsCKhfuaGIavHBUBdUuuhwuwEUOXYYwGmTEXXmVXRZrJLsDruGoYpYmTAcciUWMssQQRDEPhhuCEAkUZlfYoNkqUadbgEEzvJTQTkVPbeFnsoCPWKBEYeAqiwYpunQaLiUBpTMEuLGicQRgNnLvxbvJbKLYTxr"
-DDAC_KEY = "DdzDsZAhnpCBYdYIjTMGnwLkCdjUSqXKtPNBtnEggTpXMjVFPZRKplbvkxDcXkAdgZaaHMmZWfMvtixnOpjpgLTltGlBsnaUwfsoqXMaFNOudDUAJOCukUnnuEbAgLyqqkevkoOWcrSiUeXkTzHcmiNhoiIcTeTxwgUMvOUxPqXdFVXGjPRKRRRlOtaLibcMYOIPcIVgQwgNuLcbRAEzvIoFyHphPWZxIUmZLWQDLQdjjZNzfuwLyecspNCZKTjIPhbFbHKERezyxEBbUGMuLltbeyDVpxoAGtaWEHyrhpJxVkATMOEwuNHTNfKeioLNeHhwauJWjLnqeNlbrvZYLcYqAxIieOiuqFxKLOIhnFsoXtEZlJoYmUlrCSZPZpAzfGtOCjmHCksctYwepNVXCZEScYnbskmdqHWyZkSNgMzYceRkkbxnbzgmpSiUJpyEWjBNbNZiPbbENkwhKtHAVJKzPJpzrGvLWwPKGUdXkPpMMbZVlNZGeAOcQBLEnHiLSpfcVrpKoIUYBFKvhUNKVXeMmEmQUCpciEtAZwUdfPyKOheYdtQFXbklwppeFEeOVnqQBgHhTCZlNbETHSdSYLihxOjqDeBRsfVzrdTwiSTVvkSJxbBEuuRcbZCYJOOUtyTjcpNEVdKvHJirRLfoSOltxNQFTGMtCJTqnaeEZFSSIbHyjaDVeJyfHilqlpysiDEKRFawquymCzHTSckbQYrHNjdfoMXFUVYYTFExtEHkGjLZAXplCVDMRIJkxBOFqksPddOGfaUMQdEYUGjCNxVdjpYKPcSXDVJGhXRkyikoAiBiKOGipzSJowglSvjUQtqoqBUswPTUxsPTfOIUTpXIrdghCmSjFpKLKWndmuiXpawEjVYbwBDaVdqGoYqNrxfpjkYspZoJrNMpNGPBhlvQMJJtgajNhHyOHtUqhTEPwDaVVuYdWsBmLlWCeEBqpyHPnwkGHJzrDieaSqoYHnpXtosFCIATDeTSZepebGcNbMCAjmfThNvUVoOGXaYOIXCKsUCdqDnpMolNEZUWLJhHFTpahUmUXvvuxtxyepgyhJRjEhDsISFENzkUkFxyKptCdjPePLaLjnXPFweLBUMUIuyBl"
-API_KEY = "wWGXgvCvSBLSNeakSURTrLdXjhrzypFVPaRQRRIKHaxpJBJYJfNScXWCVoZgCEWNwYYkRRsGZTjnculaVIYWcEdtxWpqHsgReDnMBDpmaaHkXlTNJZlrqloElKhwrORNRsXWKRxzjCPnicqOTRyYvtylpDtBjelBeEyDKlANoqmiFxApPHSuQHeLILRoTPQRrPELhapixRouCaBIDiZLZpQOXUgaNPqOUlIIPdDHVbythfPfgLLYbeRjZmgtAoErfIkQSfqTTvrWyXGyPeVRmKBPGzPqsdPwWEQZzkHwTCqcsMpvRFCzUyhEexWIptKrIlFMdJonAkoZzvSWITFzIsWtqjdcCYjYtoNhIGQmsWNJwkQeNbPDJHRMSgdxraJZMBsjQprxWcGeCuNNmbgXusuHhwJiVildTTNzMYSrdtPXrpjqOgIpztZeRJoIbrHWEGUSoNuuXOIImxPOppxYAizUDDddemSiAqEaBkzMUtGVGHhwicNjLosiTOUrYFpFlpAKDnsHdkTTSXtbzjavETbyiDkUBqCuRQRLvnbWWPOxtSkGMKIyZjyFCDXNeLLzInMGKPvunvOqdHzWDidsFOyrXPPCyCfzMJCElSTbzEBfIUNOILfgCTlSIAhKMInnUVHcFhNltmFOnTDBWmFMzfGwRSnhFzQvCyzUOHOOYSGpkmGzaxvFWhrpIyAQFzhFCqqkWUrAFWJqSulQDEZHyNqYOTwJeQvkWcDUeSNLmFSPuLfvbUKJZTjXwRnWeBJyfWCHYKDHALjmDdzJaAYnrpTsdvKyirXEZBifqPgVBjhvNUyqMFiYXKdMODMzeoLnBmbwTpgHYOGeMjYcjiTajTsnFXlKyqnwNeKDZhmpMSnIMGDVZzeumwBHtxKpwVnroVaQqaavfnNXLYDYYCUMldWqcMfbEvfhStLrKvhZPDIdxjCANWoWDGgrbGWuqjgIRXRozZwpDfhOQiQsfFqJKXfLmoqRgcMfvBTlTfGFrXahtrHYBqUmaVKtqcGEpkBxTPvmOOiKOdGmvFhcloHdshFgOHCaqqEsdXylDBbdQsTGPgvMAYDNSLiBpIWDZlxEbpYvvbrkQFOwFrJLqhaUdxBobwUYk"
-INFO_KEY = "phVlVbCWHMgWxvBTxGnFwVLjnpelCuhYblZpelJuSRTXrPLQEKfEZDwxfTSBdmpcnVbzukyfEOnaVFNoOPJiSKKdpQqATODUxiiLJgaCmYXNdZsCXVshzZOURPxGvhSBrkxszwsnCbnYqDOiGYOLyRGrDEwPVxASspqFeGYcFDmDGovlqUDGgcQPKHRJMyWaQWbYzzCgOJETIdjEkmvxGnJPwgwnMsxMxQtKyoxLQskYSuSrwNkLCrvZYcqxovRhKFiwxXMRRpwVFNteydZBCwQSGJlWrseMEDKZlfNzlYFEESiAwyMRBghQlaipGkmRvxPcuWWxPSrIolqzzjTLhLIhRUxBbadHJXqoYEFSEsHrWjeGIqHvpgORtlDXYitqWaHJNrffnTryfYqYSvwXgtxTJPZnVbZzMxdtAKsKstOhzokNcsPxqhmSczYHdKTOksjRkBSkZlqHIPOCaWBGjsDAGsoPXqdrurcaOELRHgOcukddAOsRyUepOvwKPZieSwnemmlIKCPeRUtlsTFYJqSTztiQpFmiFHzOLQxwzezRTfvSADoiOzYCSRtANuoyyuKxQHmocYmcEmtbYpisnzJInfJCjFSdCwTIOzWtGQNTFZlPaWQTwVKyQqzoDXTiXEvOZknzdxAmzNARPHPfgVUzQEiCSFTXWiFGmWfowlsPrNUjNrGrRfXTxmsuSuKEUOfvSGmwJqBGDyderfRcGQNzaNSgVrXJOCAnvAWzerznYdxRfTFiGcwdJZqESiujfIAaazlaGxcoExDzsjMkYKJxsXroxVBCNiWFvqqVKFhtqaZJIVDnLxqtufAEWXnzCEPgYAxSJaoITXisyjcmvIqmSfGmVAlqDsBtieTQvbShqgzJylvRxoXpBRPnpRkXlsvmOWZuMauplDcZqAIsyHSymGELLXDYdmYnMPzEYLkkJaHmoyvGFSsPIQkZEnbVEmdaLmeIATnKEeeuvpUJRAhpppBMneuwJKRjtUluLKxdmsiJyobAqoMLIYUejitSIIjrgPAuBYEhhYvtMrQvcPeNXKnCHYIWmSUYWaeQkYRYfbEjSgGMpPDGmgNYOJWkGnGfodApdfAvVVcMqsjEeIWLEylxO"
-transaction_headers = {"Content-Type": "application/json; charset=utf-8", "authkey": API_KEY}
+transaction_headers=["Content-Type: application/json; charset=utf-8"]
 
 """
 Functions to Handle User Authentication and Authorization
@@ -53,7 +49,7 @@ def get_remita_token(username: str, password: str) -> Dict[str, Any]:
     Returns:
         Dictionary with success status and token/error
     """
-    url = "https://demo.remita.net/remita/exapp/api/v1/send/api/uaasvc/uaa/token"
+    url = getattr(settings, 'REMITA_API_AUTH_URL', "https://demo.remita.net/remita/exapp/api/v1/send/api/uaasvc/uaa/token")
 
     payload = {
         "username": username,
@@ -104,18 +100,18 @@ def check_and_refresh_token(request):
         return None
 
     # Check if token has expired (with 5 minute buffer)
-    current_time = datetime.now().timestamp()
+    current_time = now().timestamp()
     if current_time >= (token_expires - 300):
         # Token expired or about to expire, refresh it
-        remita_username = getattr(settings, 'REMITA_API_USERNAME', '2LEPNR6RZQAD0J7G')
-        remita_password = getattr(settings, 'REMITA_API_PASSWORD', 'GZU4BP1PRAKPBE1SD27EW6HH2QMM0US5')
+        remita_username = getattr(settings, 'REMITA_API_PUBLIC_KEY', '2LEPNR6RZQAD0J7G')
+        remita_password = getattr(settings, 'REMITA_API_SECRET_KEY', 'GZU4BP1PRAKPBE1SD27EW6HH2QMM0US5')
 
         token_result = get_remita_token(remita_username, remita_password)
 
         if token_result['success']:
             request.session['remita_token'] = token_result['token']
             request.session['remita_token_expires'] = (
-                    datetime.now().timestamp() + token_result['expires_in']
+                    now().timestamp() + token_result['expires_in']
             )
             return token_result['token']
         else:
@@ -126,41 +122,6 @@ def check_and_refresh_token(request):
 def is_ajax(request):
     return request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest'
 
-
-@user_is_approver
-def enterOTP(request):
-    if request.method == 'POST':
-        try:
-            otp = request.POST["otp"]
-            json = {
-                "service": "CORE_BANKING_VERIFY_OTP",
-                "request": {
-                    "userName": f"{request.user.username}",
-                    "otp": f"{otp}",
-                    "session_token": f"{cache.get('session_token')}"
-                }
-            }
-            cache.set(request.user.username, otp, timeout=600)  # set the OTP with a timeout of 300 seconds
-            resp = requests.post(url=URL, headers=transaction_headers, json=json, verify=False)
-            resp = resp.json()
-            print(resp)
-            if resp['response']['message'] == "Success":
-                if request.user.role == '001':
-                    return redirect('webapp:bank-details')
-                elif request.user.role == '002':
-                    return redirect('webapp:homepage')
-                else:
-                    messages.error(request, message="User Role Unknown")
-                    return redirect('webapp:login')
-            else:
-                messages.error(request, message='Login Failed.Invalid OTP')
-                return redirect("webapp:login")
-        except Exception as e:
-            messages.error(request, message="An error occurred. Please try again.")
-            print(str(e))
-            return redirect("webapp:login")
-
-    return render(request, 'validate-otp.html')
 
 
 def checkUserRole(request):
@@ -213,8 +174,8 @@ def UserLogin(request):
 
             if user:
                 # Get Remita API credentials from settings
-                remita_username = getattr(settings, 'REMITA_API_USERNAME', '2LEPNR6RZQAD0J7G')
-                remita_password = getattr(settings, 'REMITA_API_PASSWORD', 'GZU4BP1PRAKPBE1SD27EW6HH2QMM0US5')
+                remita_username = getattr(settings, 'REMITA_API_PUBLIC_KEY', '2LEPNR6RZQAD0J7G')
+                remita_password = getattr(settings, 'REMITA_API_SECRET_KEY', 'GZU4BP1PRAKPBE1SD27EW6HH2QMM0US5')
 
                 # Get Remita token
                 token_result = get_remita_token(remita_username, remita_password)
@@ -223,7 +184,7 @@ def UserLogin(request):
                     # Store token in session
                     request.session['remita_token'] = token_result['token']
                     request.session['remita_token_expires'] = (
-                            datetime.now().timestamp() + token_result['expires_in']
+                            now().timestamp() + token_result['expires_in']
                     )
                     print(f"Remita token acquired successfully, expires in {token_result['expires_in']} seconds")
 
@@ -787,7 +748,7 @@ def get_search_results(request):
         return JsonResponse({'message': 'Only GET requests are allowed'}, status=400)
 
     try:
-        vendor_info = BankDetails.objects.values('vendor_id', 'sort_code',
+        vendor_info = BankDetails.objects.values('vendor_id', 'bank_code',
                                                  'account_no',
                                                  'account_name').all()
 
@@ -795,7 +756,7 @@ def get_search_results(request):
 
         field_mapping_vendor = {
             'account_number': 'account_no__icontains',
-            'sort_code': 'sort_code__icontains',
+            'bank_code': 'bank_code__icontains',
             'bank_name': 'bank_name__icontains',
 
         }
@@ -975,81 +936,6 @@ def checkAccNumber(request):
 
 #@login_required(login_url="/")
 # @user_is_approver  # Uncomment this decorator
-def post_transactions(request):
-    """Post transactions to Remita API endpoint"""
-    if request.method == 'POST':
-        try:
-            # Check and get valid token
-            secret_key = "H8UJKGPI1ALHL20E98PWEP04V5KXHS1M" #check_and_refresh_token(request)
-
-            if not secret_key:
-                return JsonResponse({
-                    'success': False,
-                    'message': 'Payment service unavailable. Please logout and login again.',
-                    'error': 'No valid authentication token'
-                }, status=401)
-
-            # Parse incoming transactions
-            transacs = json.loads(request.POST.get('transactions'))
-            print("Raw transactions:", transacs)
-
-            transactions = []
-            for entry in transacs:
-                values = entry['values']
-                transaction_element = {
-                    'date': values[0],
-                    'amount': values[1],
-                    'invoice_id': values[2],
-                    'remarks': values[3],
-                    'vendor_id': values[4],
-                    'account_name': values[5],
-                    'account_no': values[7],
-                    'bank_code': values[8],
-                    'bank_name': values[9],
-                    'email': values[10] if len(values) > 10 else ''  # Optional email field
-                }
-                transactions.append(transaction_element)
-
-            print("Parsed transactions:", transactions)
-
-            # Process the bulk transfer
-            result = process_bulk_fund_transfer(
-                transactions=transactions,
-                secret_key=secret_key
-            )
-            print(result)
-            print(f"Transfer result: {result['successful']} successful, {result['failed']} failed")
-
-            if result['success']:
-                return JsonResponse({
-                    'success': True,
-                    'message': f"Processed {result['successful']} of {result['total_transactions']} transactions successfully",
-                    'total_transactions': result['total_transactions'],
-                    'successful': result['successful'],
-                    'failed': result['failed'],
-                    'results': result['results']
-                })
-            else:
-                return JsonResponse({
-                    'success': False,
-                    'message': 'All transactions failed',
-                    'total_transactions': result['total_transactions'],
-                    'successful': result['successful'],
-                    'failed': result['failed'],
-                    'results': result['results']
-                }, status=500)
-
-        except Exception as e:
-            print(f"Error processing transactions: {str(e)}")
-            import traceback
-            traceback.print_exc()
-            return JsonResponse({
-                'success': False,
-                'message': 'Error processing transactions',
-                'error': str(e)
-            }, status=500)
-
-    return JsonResponse({'message': 'GET Request Not Allowed'}, status=400)
 
 
 def single_fund_transfer(
@@ -1377,97 +1263,116 @@ def call_connect_gateway_bulk_transfer(secret_key: str, payload: Dict[str, Any])
 
 
 
-@csrf_exempt
-@login_required(login_url="/")
-# @user_is_approver  # Uncomment if approver gate is needed
-def post_bulk_fund_transfer(request):
-    """
-    Post bulk interbank fund transfers to Systemspecs Connect Gateway.
+# ---------- Connect Gateway (Interbank) bulk transfer helper ----------
 
-    Accepts either:
-    - Raw JSON body matching the API payload; or
-    - Form-encoded 'transactions' similar to post_transactions along with optional source details.
+
+
+# ---------- Connect Gateway (Integration) bulk payment ----------
+
+def build_integration_bulk_payload(body: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Normalize incoming body to match the integration bulk payment schema.
+    If keys already match, this is a no-op; otherwise, try mapping from our
+    interbank schema to the integration schema.
+    """
+    payload = dict(body) if isinstance(body, dict) else {}
+
+    # If batchRef is missing but batchPaymentIdentifier/customReference present
+    if 'batchRef' not in payload:
+        if 'batchPaymentIdentifier' in payload:
+            payload['batchRef'] = payload.pop('batchPaymentIdentifier')
+        elif 'batch_ref' in payload:
+            payload['batchRef'] = payload.pop('batch_ref')
+
+    # Map transactions array item keys if needed
+    txns = payload.get('transactions') or []
+    mapped = []
+    for t in txns:
+        if all(k in t for k in ['transactionRef','destinationBankCode','destinationAccount','destinationAccountName','amount']):
+            mapped.append(t)
+            continue
+        mapped.append({
+            'transactionRef': t.get('transactionRef') or t.get('paymentIdentifier') or t.get('invoice_id') or t.get('transaction_ref'),
+            'destinationBankCode': t.get('destinationBankCode') or t.get('bank_code'),
+            'destinationAccount': t.get('destinationAccount') or t.get('account_no'),
+            'destinationAccountName': t.get('destinationAccountName') or t.get('account_name'),
+            'destinationNarration': t.get('destinationNarration') or t.get('remarks') or 'Bulk Transfer',
+            'amount': float(t.get('amount', 0)) if isinstance(t.get('amount'), (int,float,str)) else 0,
+        })
+    if txns:
+        payload['transactions'] = mapped
+
+    # Compute totalAmount if missing
+    if 'totalAmount' not in payload or not payload.get('totalAmount'):
+        try:
+            payload['totalAmount'] = int(sum(float(x.get('amount',0)) for x in payload.get('transactions', [])))
+        except Exception:
+            pass
+
+    return payload
+
+
+def call_connect_gateway_integration_bulk_payment(bearer_token: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    url = 'https://api-demo.systemspecsng.com/services/connect-gateway/api/v1/integration/bulk/payment'
+    headers = {
+        'Authorization': f'Bearer {bearer_token}',
+        'Content-Type': 'application/json'
+    }
+    try:
+        resp = requests.post(url, headers=headers, json=payload, timeout=90)
+        try:
+            data = resp.json()
+        except Exception:
+            data = {'raw': resp.text}
+        if 200 <= resp.status_code < 300:
+            return {'success': True, 'status_code': resp.status_code, 'data': data}
+        return {'success': False, 'status_code': resp.status_code, 'response_data': data}
+    except requests.exceptions.RequestException as e:
+        err = None
+        if hasattr(e, 'response') and e.response is not None:
+            try:
+                err = e.response.json()
+            except Exception:
+                err = getattr(e.response, 'text', None)
+        return {'success': False, 'error': str(e), 'status_code': getattr(e.response, 'status_code', None), 'response_data': err}
+
+
+@csrf_exempt
+def integration_bulk_payment(request):
+    """
+    Proxy endpoint to post bulk payments to the Connect Gateway integration API.
+    Accepts JSON body matching the user's cURL. Authorization bearer token can be provided
+    in the request Authorization header; otherwise, we try to use the session token.
     """
     if request.method != 'POST':
         return JsonResponse({'message': 'GET Request Not Allowed'}, status=400)
+
     try:
-        # Prefer explicit secret key from settings for Connect Gateway
-        connect_secret_key = getattr(settings, 'REMITA_CONNECT_SECRET_KEY', None)
-        if not connect_secret_key:
-            # allow override from header or POST for testing
-            connect_secret_key = request.headers.get('secretKey') or request.POST.get('secretKey')
-        if not connect_secret_key:
-            # fall back to session token if absolutely necessary (not typical for Connect Gateway)
-            connect_secret_key = check_and_refresh_token(request)
-        if not connect_secret_key:
-            return JsonResponse({
-                'success': False,
-                'error': 'Missing Connect Gateway secretKey'
-            }, status=401)
+        # Get bearer token from incoming request or session
+        auth_header = request.headers.get('Authorization') or request.META.get('HTTP_AUTHORIZATION')
+        bearer = None
+        if auth_header and auth_header.lower().startswith('bearer '):
+            bearer = auth_header.split(' ', 1)[1].strip()
+        if not bearer:
+            bearer = check_and_refresh_token(request)
+        if not bearer:
+            return JsonResponse({'success': False, 'message': 'Missing Authorization Bearer token'}, status=401)
 
-        payload = None
-        if request.content_type and 'application/json' in request.content_type:
-            try:
-                body = json.loads(request.body.decode('utf-8')) if request.body else {}
-                if isinstance(body, dict) and 'transactions' in body:
-                    payload = body
-            except Exception:
-                payload = None
+        # Parse JSON body
+        try:
+            body = json.loads(request.body.decode('utf-8')) if request.body else {}
+        except Exception as e:
+            return JsonResponse({'success': False, 'message': 'Invalid JSON body', 'error': str(e)}, status=400)
 
-        if payload is None:
-            # Build from posted transactions
-            raw = request.POST.get('transactions')
-            if not raw:
-                return JsonResponse({'success': False, 'error': 'No transactions provided'}, status=400)
-            transacs = json.loads(raw)
-            transactions = []
-            for entry in transacs:
-                values = entry['values']
-                transactions.append({
-                    'amount': values[1],
-                    'invoice_id': values[2],
-                    'remarks': values[3],
-                    'account_name': values[5],
-                    'account_no': values[7],
-                    'bank_code': values[8],
-                })
-            # Source defaults from settings or request
-            source_account = request.POST.get('sourceAccount') or getattr(settings, 'REMITA_SOURCE_ACCOUNT', '')
-            source_bank_code = request.POST.get('sourceBankCode') or getattr(settings, 'REMITA_SOURCE_BANK_CODE', '011')
-            source_account_name = request.POST.get('sourceAccountName') or getattr(settings, 'REMITA_SOURCE_ACCOUNT_NAME', '')
-            currency = request.POST.get('currency') or getattr(settings, 'REMITA_CURRENCY', 'NGN')
-            source_narration = request.POST.get('sourceNarration') or 'Bulk Transfer'
-            approval = json.loads(request.POST.get('approval').lower()) if request.POST.get('approval') else False
-            pay_by_transfer = json.loads(request.POST.get('payByTransfer').lower()) if request.POST.get('payByTransfer') else False
-            custom_reference = request.POST.get('customReference')
-            batch_payment_identifier = request.POST.get('batchPaymentIdentifier')
+        # Normalize payload and backfill totals if needed
+        payload = build_integration_bulk_payload(body)
 
-            original_payer = {
-                'account_number': request.POST.get('originalPayerAccountNumber') or getattr(settings, 'REMITA_ORIGINAL_PAYER_ACCOUNT_NUMBER', ''),
-                'bank_code': request.POST.get('originalPayerBankCode') or getattr(settings, 'REMITA_ORIGINAL_PAYER_BANK_CODE', ''),
-                'name': request.POST.get('originalPayerName') or getattr(settings, 'REMITA_ORIGINAL_PAYER_NAME', ''),
-            }
-            # Remove empty values
-            original_payer = {k: v for k, v in original_payer.items() if v}
+        # If originalBankCode/Number provided in body, keep as-is; otherwise allow optional mapping
+        # No extra handling needed here since we forward the payload.
 
-            payload, _ = build_bulk_payload_from_transactions(
-                transactions=transactions,
-                source_account=source_account,
-                source_bank_code=source_bank_code,
-                source_account_name=source_account_name,
-                currency=currency,
-                source_narration=source_narration,
-                approval=approval,
-                pay_by_transfer=pay_by_transfer,
-                batch_payment_identifier=batch_payment_identifier,
-                custom_reference=custom_reference,
-                original_payer=original_payer or None
-            )
-
-        # Call external API
-        result = call_connect_gateway_bulk_transfer(connect_secret_key, payload)
+        result = call_connect_gateway_integration_bulk_payment(bearer, payload)
         status = 200 if result.get('success') else (result.get('status_code') or 500)
         return JsonResponse(result, status=status, safe=False)
 
     except Exception as e:
-        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+        return JsonResponse({'success': False, 'message': 'Error processing request', 'error': str(e)}, status=500)

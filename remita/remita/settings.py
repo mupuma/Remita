@@ -92,7 +92,7 @@ DATABASES = {
         'HOST': '127.0.0.1',
         'PORT': '3306'
     },
-    'ABSDAT': {
+    'ACCDAT': {
         'ENGINE': 'mssql',
         'NAME': 'INFDAT',
         'USER': 'sa',
@@ -103,31 +103,9 @@ DATABASES = {
             'driver': 'ODBC Driver 17 for SQL Server',
         },
     },
-    'ACCDAT': {
-        'ENGINE': 'mssql',
-        'NAME': 'ACCDAT',
-        'USER': 'sa',
-        'PASSWORD': 'Admin123',
-        'HOST': 'localhost',
-        'PORT': '1433',
-        'OPTIONS': {
-            'driver': 'ODBC Driver 17 for SQL Server',
-        },
-    },
-    'ACPDAT': {
-        'ENGINE': 'mssql',
-        'NAME': 'ACPDAT',
-        'USER': 'sa',
-        'PASSWORD': 'Admin123',
-        'HOST': 'localhost',
-        'PORT': '1433',
-        'OPTIONS': {
-            'driver': 'ODBC Driver 17 for SQL Server',
-        },
-    },
     'ACTDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'ACTDAT',
+        'NAME': 'INFDAT',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -138,29 +116,7 @@ DATABASES = {
     },
     'ADADAT': {
         'ENGINE': 'mssql',
-        'NAME': 'ADADAT',
-        'USER': 'sa',
-        'PASSWORD': 'Admin123',
-        'HOST': 'localhost',
-        'PORT': '1433',
-        'OPTIONS': {
-            'driver': 'ODBC Driver 17 for SQL Server',
-        },
-    },
-    'AFBDAT': {
-        'ENGINE': 'mssql',
-        'NAME': 'AFBDAT',
-        'USER': 'sa',
-        'PASSWORD': 'Admin123',
-        'HOST': 'localhost',
-        'PORT': '1433',
-        'OPTIONS': {
-            'driver': 'ODBC Driver 17 for SQL Server',
-        },
-    },
-    'AICDAT': {
-        'ENGINE': 'mssql',
-        'NAME': 'AICDAT',
+        'NAME': 'INFDAT',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -171,7 +127,7 @@ DATABASES = {
     },
     'ANRDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'ANRDAT',
+        'NAME': 'INFDAT',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -182,7 +138,7 @@ DATABASES = {
     },
     'APTDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'APTDAT',
+        'NAME': 'INFDAT',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -191,20 +147,9 @@ DATABASES = {
             'driver': 'ODBC Driver 17 for SQL Server',
         },
     },
-    'ASLDAT': {
+    'ASPDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'ASLDAT',
-        'USER': 'sa',
-        'PASSWORD': 'Admin123',
-        'HOST': 'localhost',
-        'PORT': '1433',
-        'OPTIONS': {
-            'driver': 'ODBC Driver 17 for SQL Server',
-        },
-    },
-    'AVEDAT': {
-        'ENGINE': 'mssql',
-        'NAME': 'AVEDAT',
+        'NAME': 'INFDAT',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -215,7 +160,7 @@ DATABASES = {
     },
     'BEADAT': {
         'ENGINE': 'mssql',
-        'NAME': 'BEADAT',
+        'NAME': 'INFDAT',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -226,7 +171,7 @@ DATABASES = {
     },
     'BEGDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'BEGDAT',
+        'NAME': 'INFDAT',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -237,7 +182,7 @@ DATABASES = {
     },
     'BRIDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'BRIDAT',
+        'NAME': 'INFDAT',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -248,7 +193,7 @@ DATABASES = {
     },
     'BUFDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'BUFDAT',
+        'NAME': 'INFDAT',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -259,18 +204,7 @@ DATABASES = {
     },
     'BUTDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'BUTDAT',
-        'USER': 'sa',
-        'PASSWORD': 'Admin123',
-        'HOST': 'localhost',
-        'PORT': '1433',
-        'OPTIONS': {
-            'driver': 'ODBC Driver 17 for SQL Server',
-        },
-    },
-    'CADDAT': {
-        'ENGINE': 'mssql',
-        'NAME': 'CADDAT',
+        'NAME': 'INFDAT',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -281,18 +215,7 @@ DATABASES = {
     },
     'CAMDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'CAMDAT',
-        'USER': 'sa',
-        'PASSWORD': 'Admin123',
-        'HOST': 'localhost',
-        'PORT': '1433',
-        'OPTIONS': {
-            'driver': 'ODBC Driver 17 for SQL Server',
-        },
-    },
-    'CANDAT': {
-        'ENGINE': 'mssql',
-        'NAME': 'CANDAT',
+        'NAME': 'INFDAT',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -303,18 +226,7 @@ DATABASES = {
     },
     'CASDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'CASDAT',
-        'USER': 'sa',
-        'PASSWORD': 'Admin123',
-        'HOST': 'localhost',
-        'PORT': '1433',
-        'OPTIONS': {
-            'driver': 'ODBC Driver 17 for SQL Server',
-        },
-    },
-    'CDCDAT': {
-        'ENGINE': 'mssql',
-        'NAME': 'CDCDAT',
+        'NAME': 'INFDAT',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -325,7 +237,18 @@ DATABASES = {
     },
     'CIPDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'CIPDAT',
+        'NAME': 'INFDAT',
+        'USER': 'sa',
+        'PASSWORD': 'Admin123',
+        'HOST': 'localhost',
+        'PORT': '1433',
+        'OPTIONS': {
+            'driver': 'ODBC Driver 17 for SQL Server',
+        },
+    },
+    'CLEDAT': {
+        'ENGINE': 'mssql',
+        'NAME': 'INFDAT',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -336,18 +259,7 @@ DATABASES = {
     },
     'D2EDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'D2EDAT',
-        'USER': 'sa',
-        'PASSWORD': 'Admin123',
-        'HOST': 'localhost',
-        'PORT': '1433',
-        'OPTIONS': {
-            'driver': 'ODBC Driver 17 for SQL Server',
-        },
-    },
-    'EDCDAT': {
-        'ENGINE': 'mssql',
-        'NAME': 'EDCDAT',
+        'NAME': 'INFDAT',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -358,7 +270,7 @@ DATABASES = {
     },
     'EFADAT': {
         'ENGINE': 'mssql',
-        'NAME': 'EFADAT',
+        'NAME': 'INFDAT',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -369,7 +281,7 @@ DATABASES = {
     },
     'ENHDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'ENHDAT',
+        'NAME': 'INFDAT',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -380,7 +292,18 @@ DATABASES = {
     },
     'EQUDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'EQUDAT',
+        'NAME': 'INFDAT',
+        'USER': 'sa',
+        'PASSWORD': 'Admin123',
+        'HOST': 'localhost',
+        'PORT': '1433',
+        'OPTIONS': {
+            'driver': 'ODBC Driver 17 for SQL Server',
+        },
+    },
+    'EXCDAT': {
+        'ENGINE': 'mssql',
+        'NAME': 'INFDAT',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -391,7 +314,7 @@ DATABASES = {
     },
     'EXPDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'EXPDAT',
+        'NAME': 'INFDAT',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -402,29 +325,7 @@ DATABASES = {
     },
     'FELDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'FELDAT',
-        'USER': 'sa',
-        'PASSWORD': 'Admin123',
-        'HOST': 'localhost',
-        'PORT': '1433',
-        'OPTIONS': {
-            'driver': 'ODBC Driver 17 for SQL Server',
-        },
-    },
-    'FHIDAT': {
-        'ENGINE': 'mssql',
-        'NAME': 'FHIDAT',
-        'USER': 'sa',
-        'PASSWORD': 'Admin123',
-        'HOST': 'localhost',
-        'PORT': '1433',
-        'OPTIONS': {
-            'driver': 'ODBC Driver 17 for SQL Server',
-        },
-    },
-    'FLEMDA': {
-        'ENGINE': 'mssql',
-        'NAME': 'FLEMDA',
+        'NAME': 'INFDAT',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -435,7 +336,18 @@ DATABASES = {
     },
     'GC7DAT': {
         'ENGINE': 'mssql',
-        'NAME': 'GC7DAT',
+        'NAME': 'INFDAT',
+        'USER': 'sa',
+        'PASSWORD': 'Admin123',
+        'HOST': 'localhost',
+        'PORT': '1433',
+        'OPTIONS': {
+            'driver': 'ODBC Driver 17 for SQL Server',
+        },
+    },
+    'GDRSDA': {
+        'ENGINE': 'mssql',
+        'NAME': 'INFDAT',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -446,7 +358,7 @@ DATABASES = {
     },
     'GESDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'GESDAT',
+        'NAME': 'INFDAT',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -455,9 +367,9 @@ DATABASES = {
             'driver': 'ODBC Driver 17 for SQL Server',
         },
     },
-    'GFMDAT': {
+    'GFSDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'GFMDAT',
+        'NAME': 'INFDAT',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -468,7 +380,7 @@ DATABASES = {
     },
     'GFTBSR': {
         'ENGINE': 'mssql',
-        'NAME': 'GFTBSR',
+        'NAME': 'INFDAT',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -477,9 +389,20 @@ DATABASES = {
             'driver': 'ODBC Driver 17 for SQL Server',
         },
     },
-    'H3AADA': {
+    'GFTDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'H3AADA',
+        'NAME': 'INFDAT',
+        'USER': 'sa',
+        'PASSWORD': 'Admin123',
+        'HOST': 'localhost',
+        'PORT': '1433',
+        'OPTIONS': {
+            'driver': 'ODBC Driver 17 for SQL Server',
+        },
+    },
+    'H3ADAT': {
+        'ENGINE': 'mssql',
+        'NAME': 'INFDAT',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -490,18 +413,7 @@ DATABASES = {
     },
     'HAFDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'HAFDAT',
-        'USER': 'sa',
-        'PASSWORD': 'Admin123',
-        'HOST': 'localhost',
-        'PORT': '1433',
-        'OPTIONS': {
-            'driver': 'ODBC Driver 17 for SQL Server',
-        },
-    },
-    'HARDAT': {
-        'ENGINE': 'mssql',
-        'NAME': 'HARDAT',
+        'NAME': 'INFDAT',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -512,7 +424,7 @@ DATABASES = {
     },
     'HEPDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'HEPDAT',
+        'NAME': 'INFDAT',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -523,7 +435,7 @@ DATABASES = {
     },
     'HOMDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'HOMDAT',
+        'NAME': 'INFDAT',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -532,31 +444,9 @@ DATABASES = {
             'driver': 'ODBC Driver 17 for SQL Server',
         },
     },
-    'IACTDA': {
+    'IEVDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'IACTDA',
-        'USER': 'sa',
-        'PASSWORD': 'Admin123',
-        'HOST': 'localhost',
-        'PORT': '1433',
-        'OPTIONS': {
-            'driver': 'ODBC Driver 17 for SQL Server',
-        },
-    },
-    'IDRDAT': {
-        'ENGINE': 'mssql',
-        'NAME': 'IDRDAT',
-        'USER': 'sa',
-        'PASSWORD': 'Admin123',
-        'HOST': 'localhost',
-        'PORT': '1433',
-        'OPTIONS': {
-            'driver': 'ODBC Driver 17 for SQL Server',
-        },
-    },
-    'IEDDAT': {
-        'ENGINE': 'mssql',
-        'NAME': 'IEDDAT',
+        'NAME': 'INFDAT',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -567,7 +457,7 @@ DATABASES = {
     },
     'IGHDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'IGHDAT',
+        'NAME': 'INFDAT',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -578,7 +468,7 @@ DATABASES = {
     },
     'IHVGDA': {
         'ENGINE': 'mssql',
-        'NAME': 'IHVGDA',
+        'NAME': 'INFDAT',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -589,7 +479,7 @@ DATABASES = {
     },
     'IHVPAD': {
         'ENGINE': 'mssql',
-        'NAME': 'IHVPAD',
+        'NAME': 'INFDAT',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -598,9 +488,20 @@ DATABASES = {
             'driver': 'ODBC Driver 17 for SQL Server',
         },
     },
-    'IMMDAT': {
+    'IHVSDA': {
         'ENGINE': 'mssql',
-        'NAME': 'IMMDAT',
+        'NAME': 'INFDAT',
+        'USER': 'sa',
+        'PASSWORD': 'Admin123',
+        'HOST': 'localhost',
+        'PORT': '1433',
+        'OPTIONS': {
+            'driver': 'ODBC Driver 17 for SQL Server',
+        },
+    },
+    'IMADAT': {
+        'ENGINE': 'mssql',
+        'NAME': 'INFDAT',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -611,7 +512,7 @@ DATABASES = {
     },
     'IMPDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'IMPDAT',
+        'NAME': 'INFDAT',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -622,7 +523,7 @@ DATABASES = {
     },
     'IMUDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'IMUDAT',
+        'NAME': 'INFDAT',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -642,20 +543,9 @@ DATABASES = {
             'driver': 'ODBC Driver 17 for SQL Server',
         },
     },
-    'INSDAT': {
-        'ENGINE': 'mssql',
-        'NAME': 'INSDAT',
-        'USER': 'sa',
-        'PASSWORD': 'Admin123',
-        'HOST': 'localhost',
-        'PORT': '1433',
-        'OPTIONS': {
-            'driver': 'ODBC Driver 17 for SQL Server',
-        },
-    },
     'IRCDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'IRCDAT',
+        'NAME': 'INFDAT',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -664,9 +554,9 @@ DATABASES = {
             'driver': 'ODBC Driver 17 for SQL Server',
         },
     },
-    'ISNDAT': {
+    'ISEDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'ISNDAT',
+        'NAME': 'INFDAT',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -677,7 +567,7 @@ DATABASES = {
     },
     'ITADAT': {
         'ENGINE': 'mssql',
-        'NAME': 'ITADAT',
+        'NAME': 'INFDAT',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -686,9 +576,9 @@ DATABASES = {
             'driver': 'ODBC Driver 17 for SQL Server',
         },
     },
-    'KNCDAT': {
+    'LONDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'KNCDAT',
+        'NAME': 'INFDAT',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -699,7 +589,7 @@ DATABASES = {
     },
     'LSTDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'LSTDAT',
+        'NAME': 'INFDAT',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -708,9 +598,9 @@ DATABASES = {
             'driver': 'ODBC Driver 17 for SQL Server',
         },
     },
-    'MULDAT': {
+    'MALDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'MULDAT',
+        'NAME': 'INFDAT',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -719,9 +609,9 @@ DATABASES = {
             'driver': 'ODBC Driver 17 for SQL Server',
         },
     },
-    'NAHDAT': {
+    'NDBSDA': {
         'ENGINE': 'mssql',
-        'NAME': 'NAHDAT',
+        'NAME': 'INFDAT',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -730,9 +620,20 @@ DATABASES = {
             'driver': 'ODBC Driver 17 for SQL Server',
         },
     },
-    'NMSDAT': {
+    'NORDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'NMSDAT',
+        'NAME': 'INFDAT',
+        'USER': 'sa',
+        'PASSWORD': 'Admin123',
+        'HOST': 'localhost',
+        'PORT': '1433',
+        'OPTIONS': {
+            'driver': 'ODBC Driver 17 for SQL Server',
+        },
+    },
+    'OUTDAT': {
+        'ENGINE': 'mssql',
+        'NAME': 'INFDAT',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -743,7 +644,29 @@ DATABASES = {
     },
     'PAVDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'PAVDAT',
+        'NAME': 'INFDAT',
+        'USER': 'sa',
+        'PASSWORD': 'Admin123',
+        'HOST': 'localhost',
+        'PORT': '1433',
+        'OPTIONS': {
+            'driver': 'ODBC Driver 17 for SQL Server',
+        },
+    },
+    'PEDDAT': {
+        'ENGINE': 'mssql',
+        'NAME': 'INFDAT',
+        'USER': 'sa',
+        'PASSWORD': 'Admin123',
+        'HOST': 'localhost',
+        'PORT': '1433',
+        'OPTIONS': {
+            'driver': 'ODBC Driver 17 for SQL Server',
+        },
+    },
+    'PLADAT': {
+        'ENGINE': 'mssql',
+        'NAME': 'INFDAT',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -754,7 +677,73 @@ DATABASES = {
     },
     'RECDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'RECDAT',
+        'NAME': 'INFDAT',
+        'USER': 'sa',
+        'PASSWORD': 'Admin123',
+        'HOST': 'localhost',
+        'PORT': '1433',
+        'OPTIONS': {
+            'driver': 'ODBC Driver 17 for SQL Server',
+        },
+    },
+    'RSLDAT': {
+        'ENGINE': 'mssql',
+        'NAME': 'INFDAT',
+        'USER': 'sa',
+        'PASSWORD': 'Admin123',
+        'HOST': 'localhost',
+        'PORT': '1433',
+        'OPTIONS': {
+            'driver': 'ODBC Driver 17 for SQL Server',
+        },
+    },
+    'SAFDAT': {
+        'ENGINE': 'mssql',
+        'NAME': 'INFDAT',
+        'USER': 'sa',
+        'PASSWORD': 'Admin123',
+        'HOST': 'localhost',
+        'PORT': '1433',
+        'OPTIONS': {
+            'driver': 'ODBC Driver 17 for SQL Server',
+        },
+    },
+    'SCEDAT': {
+        'ENGINE': 'mssql',
+        'NAME': 'INFDAT',
+        'USER': 'sa',
+        'PASSWORD': 'Admin123',
+        'HOST': 'localhost',
+        'PORT': '1433',
+        'OPTIONS': {
+            'driver': 'ODBC Driver 17 for SQL Server',
+        },
+    },
+    'SGHDAT': {
+        'ENGINE': 'mssql',
+        'NAME': 'INFDAT',
+        'USER': 'sa',
+        'PASSWORD': 'Admin123',
+        'HOST': 'localhost',
+        'PORT': '1433',
+        'OPTIONS': {
+            'driver': 'ODBC Driver 17 for SQL Server',
+        },
+    },
+    'SPEDAT': {
+        'ENGINE': 'mssql',
+        'NAME': 'INFDAT',
+        'USER': 'sa',
+        'PASSWORD': 'Admin123',
+        'HOST': 'localhost',
+        'PORT': '1433',
+        'OPTIONS': {
+            'driver': 'ODBC Driver 17 for SQL Server',
+        },
+    },
+    'STADAT': {
+        'ENGINE': 'mssql',
+        'NAME': 'INFDAT',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -765,7 +754,18 @@ DATABASES = {
     },
     'SYNDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'SYNDAT',
+        'NAME': 'INFDAT',
+        'USER': 'sa',
+        'PASSWORD': 'Admin123',
+        'HOST': 'localhost',
+        'PORT': '1433',
+        'OPTIONS': {
+            'driver': 'ODBC Driver 17 for SQL Server',
+        },
+    },
+    'TICDAT': {
+        'ENGINE': 'mssql',
+        'NAME': 'INFDAT',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -776,18 +776,7 @@ DATABASES = {
     },
     'TIFDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'TIFDAT',
-        'USER': 'sa',
-        'PASSWORD': 'Admin123',
-        'HOST': 'localhost',
-        'PORT': '1433',
-        'OPTIONS': {
-            'driver': 'ODBC Driver 17 for SQL Server',
-        },
-    },
-    'TRACDA': {
-        'ENGINE': 'mssql',
-        'NAME': 'TRACDA',
+        'NAME': 'INFDAT',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -798,7 +787,18 @@ DATABASES = {
     },
     'TRIDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'TRIDAT',
+        'NAME': 'INFDAT',
+        'USER': 'sa',
+        'PASSWORD': 'Admin123',
+        'HOST': 'localhost',
+        'PORT': '1433',
+        'OPTIONS': {
+            'driver': 'ODBC Driver 17 for SQL Server',
+        },
+    },
+    'VERDAT': {
+        'ENGINE': 'mssql',
+        'NAME': 'INFDAT',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -809,7 +809,7 @@ DATABASES = {
     },
     'WANDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'WANDAT',
+        'NAME': 'INFDAT',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -820,51 +820,7 @@ DATABASES = {
     },
     'WONDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'WONDAT',
-        'USER': 'sa',
-        'PASSWORD': 'Admin123',
-        'HOST': 'localhost',
-        'PORT': '1433',
-        'OPTIONS': {
-            'driver': 'ODBC Driver 17 for SQL Server',
-        },
-    },
-    'ACHDAT': {
-        'ENGINE': 'mssql',
-        'NAME': 'ACHDAT',
-        'USER': 'sa',
-        'PASSWORD': 'Admin123',
-        'HOST': 'localhost',
-        'PORT': '1433',
-        'OPTIONS': {
-            'driver': 'ODBC Driver 17 for SQL Server',
-        },
-    },
-    'GFHDAT': {
-        'ENGINE': 'mssql',
-        'NAME': 'GFHDAT',
-        'USER': 'sa',
-        'PASSWORD': 'Admin123',
-        'HOST': 'localhost',
-        'PORT': '1433',
-        'OPTIONS': {
-            'driver': 'ODBC Driver 17 for SQL Server',
-        },
-    },
-    'GFTDAT': {
-        'ENGINE': 'mssql',
-        'NAME': 'GFTDAT',
-        'USER': 'sa',
-        'PASSWORD': 'Admin123',
-        'HOST': 'localhost',
-        'PORT': '1433',
-        'OPTIONS': {
-            'driver': 'ODBC Driver 17 for SQL Server',
-        },
-    },
-    'ASPDAT': {
-        'ENGINE': 'mssql',
-        'NAME': 'ASPDAT',
+        'NAME': 'INFDAT',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
