@@ -1,0 +1,90 @@
+{% extends 'base2.html' %}
+{% load static %}
+{% block content %}
+
+
+        <div class="container pt-5">
+            <div class="row mb-3 ">
+                <div class="pb-5 ">
+                    <h3 style="position: absolute;left: 100px;font-weight: 600;font-size: 28px;">AP Vendors</h3>
+                    <form style="position: absolute;right: 100px;">
+                        <div class="search-bar">
+                            <input type="text" placeholder="Search by ID" id="vendor-search" name="vendor-search"
+                                   >
+                            <button class="btn text-white" type="button" id="search-button">
+                                <i class="fa fa-search"></i>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+               <div class="card p-2 mt-5 shadow-sm border-0">
+                <table class="table table-hover mt-3 " style="table-layout: fixed;">
+                    <thead class="text-center" >
+                    <tr>
+                        <th scope="col">Account No</th>
+                        <th scope="col">Account Name</th>
+                        <th scope="col">Vendor ID</th>
+                        <th scope="col">Vendor Email</th>
+                        <th scope="col">Bank Name</th>
+                        <th scope="col">Bank Code</th>s
+                        <th scope="col">Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody class="text-center" id="table-body">
+                    {% if bank_details %}
+                        {% for details in bank_details %}
+                            <tr>
+                                <td>{{ details.account_no }}</td>
+                                <td>{{ details.account_name }}</td>
+                                <td>{{ details.vendor_id }}</td>
+                                <td>{{ details.vendor_email }}</td>
+                                <td>{{ details.bank_name }}</td>
+                                <td id="vendor_acc">{{ details.bank_code }}</td>
+                            <td>
+                                <a class="btn btn-sm text-white" href="{% url 'webapp:edit-bank-details' acc_id=details.account_no%}" style="background-color: #183660; border-radius: 50px">
+                                    Edit
+                                </a>
+                                <a class="btn btn-dark btn-sm" style="border-radius: 50px" href="{% url 'webapp:delete' acc_no=details.account_no %}">
+                                   Delete
+                                </a>
+                            </td>
+                            </tr>
+                        {% endfor %}
+
+
+                    {% else %}
+                        <tr>
+                            <td colspan="7" class="py-5">No Vendor Information Found <a
+                                    href="{% url 'webapp:upload-bank-details' %}">Add Vendors</a></td>
+                        </tr>
+                    {% endif %}
+                    </tbody>
+                </table>
+                {% include 'vendor_bank_details_paginator.html' %}
+            </div>
+        </div>
+    </div>
+    </div>
+{% endblock %}
+{% block extra-scripts %}
+    <script >
+    const vendorSearch = document.getElementById('vendor-search')
+    const vendorSearchButton = document.getElementById('search-button')
+        vendorSearchButton.addEventListener('click', () => {
+        let vendorID = vendorSearch.value
+    
+        console.log(vendorID)
+        fetch(`bank_details/search?vendor=${vendorID}`)
+        .then(response => response.text())
+        .then(html => {
+            const parser = new DOMParser();
+            const newDoc = parser.parseFromString(html, 'text/html');
+            const newTable = newDoc.getElementById('table-body');
+            console.log(newTable)
+            const tableBody = document.getElementById('table-body');
+            tableBody.replaceWith(newTable);
+        })
+})
+    </script>
+
+{% endblock %}

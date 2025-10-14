@@ -1,0 +1,211 @@
+{% extends 'base2.html' %}
+{% load static %}
+
+
+{% block title %}
+    Transaction History
+{% endblock %}
+
+{% block content %}
+    {% include 'partials/transactions/date-selector-modal.html' %}
+    <div class="container">
+        {% include 'partials/transactions/scroller.html' %}
+        <div class="row mt-5 mb-2">
+
+            <div class="col d-flex justify-content-start pl-0"><h3 style="font-weight: bold"> Transaction History</h3>
+            </div>
+            <div class="col d-flex justify-content-end pr-0">
+                <div class="mr-auto">
+                    <button type="button" style="background-color: #183660;border-radius: 50px; "
+                            class="btn text-white btn-md"
+                            data-bs-toggle="modal"
+                            data-bs-target="#date-selector-modal"><i class="bi bi-filetype-xls"></i>
+                    </button>
+                    <button class="btn btn-md text-white" id="toggle-btn"
+                            style="background-color: #183660 ;border-radius:50px;"><i class="bi bi-toggle-on"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="row mt-4 mb-4" id="chart-div">
+            <div class="col">
+                <div class="card shadow-sm border-0 p-2">
+                    <canvas id="lineGraph" style="height: 250px;"></canvas>
+                </div>
+            </div>
+            <div class="col ">
+                <div class="card shadow-sm border-0 p-2">
+                    <canvas id="barGraph" style="height: 250px;"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col">
+                <div class="card shadow-sm border-0 p-2">
+                    <table class="table table-hover mt-3 ">
+                        <thead>
+                        <tr>
+                            <th scope="col"></th>
+                            <th scope="col">Date</th>
+                            <th scope="col">Amount</th>
+                            <th scope="col">Invoice Number</th>
+                            <th scope="col">Beneficiary ID</th>
+                            <th scope="col">Beneficiary Name</th>
+                            <th scope="col">Trans Type</th>
+                            <th scope="col">Processed By</th>
+                            <th scop="col">Timestamp</th>
+                        </tr>
+
+                        </thead>
+                        {% for transaction in transaction_info %}
+                            <tbody id="table-body">
+                            <td></td>
+                            <td>{{ transaction.transaction_date }}</td>
+                            <td>{{ transaction.amount }}</td>
+                            <td>{{ transaction.invoiceid }}</td>
+                            <td>{{ transaction.vendorid }}</td>
+                            <td>{{ transaction.vendorname }}</td>
+                            <td>{{ transaction.transaction_type }}</td>
+                            <td>{{ transaction.processed_by }}</td>
+                            <td>{{ transaction.timestamp }}</td>
+                            </tbody>
+                        {% endfor %}
+
+                    </table>
+                    {% include 'partials/transactions/home-page-paginator.html' %}
+                </div>
+            </div>
+
+        </div>
+    </div>
+{% endblock %}
+
+{% block extra-scripts %}
+    <script>
+        $(document).ready(function () {
+            $("#toggle-btn").click(function () {
+                $("#chart-div").toggle();
+            })
+        })
+    </script>
+    <script>
+        datepicker1 = document.getElementById('datepicker1')
+        datepicker2 = document.getElementById('datepicker2')
+        const exportButton = document.getElementById('excel-modal-submit-button');
+
+        flatpickr(datepicker2, {
+            dateFormat: "d-m-Y"
+        });
+        flatpickr(datepicker1, {
+            dateFormat: "d-m-Y"
+        });
+        datepicker1.addEventListener('input', (e) => {
+            isStartDateEmpty = false;
+            if (isStartDateEmpty === false && isEndDateEmpty === false) {
+                exportButton.removeAttribute('disabled');
+            }
+        });
+
+        datepicker2.addEventListener('input', (e) => {
+            isEndDateEmpty = false;
+            if (isStartDateEmpty === false && isEndDateEmpty === false) {
+                exportButton.removeAttribute('disabled');
+            }
+        });
+       
+
+        exportButton.addEventListener('click', (e) => {
+
+            e.preventDefault()
+            fetch(`/download/?start_date=${datepicker1.value}&end_date=${datepicker2.value}`)
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.blob();
+    })
+    .then(blob => {
+        // Create temporary link to download the Excel file
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Transaction_History_${datepicker1.value}_${datepicker2.value}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+    })
+    .catch(error => {
+        console.error('Error downloading transaction history:', error);
+    });
+    });
+
+       
+
+    </script>
+    <script>
+        function hideModal() {
+            $('#date-selector-modal').modal('hide');
+        }
+    </script>
+    <script src="{% static 'js/process_transaction.js' %}"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var chr = document.getElementById('barGraph').getContext('2d');
+            var monthLabels = [{% for data in data_by_month %}'{{ data.month }}',{% endfor %}];
+            var dataPoints = [];
+
+            {% for data in data_by_month %}
+                dataPoints.push({{ data.data|default:0 }});
+            {% endfor %}
+
+            var chart1 = new Chart(chr, {
+                type: 'bar',
+                data: {
+                    labels: monthLabels,
+                    datasets: [{
+                        label: 'Number of Transactions',
+                        backgroundColor: "#183660",
+                        borderColor: "#124271",
+                        data: dataPoints,
+
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+
+                            suggestedMin: 0,
+                            suggestedMax: 100
+
+                        }
+                    }
+                }
+            });
+
+            var ctx = document.getElementById('lineGraph').getContext('2d');
+            var chart2 = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: [{% for date_list in date_list %}'{{ date_list|safe }}',{% endfor %}],
+                    datasets: [{
+                        label: 'Number of Transactions',
+                        backgroundColor: "#183660",
+                        borderColor: "#124271",
+                        data: [{% for count_list in count_list %}{{ count_list|safe }}, {% endfor %}],
+
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+
+                            suggestedMin: 0,
+                            suggestedMax: 100
+
+                        }
+                    }
+                }
+            });
+        });
+    </script>
+{% endblock %}

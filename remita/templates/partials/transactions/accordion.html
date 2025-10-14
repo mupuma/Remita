@@ -1,0 +1,115 @@
+{% load static %}
+<div class="container pt-5">
+  <div class="row mb-5 pt-3">
+    <div class="col pt-1">
+      <div class="search-bar">
+        <select id="filter-options">
+          <option class="text-muted">Filters</option>
+          <option value="amount">Amount</option>
+          <option value="date">Date</option>
+          <option value="invoice_id">Invoice Number</option>
+          <option value="vendor_id">Beneficiary Id</option>
+        </select>
+        <input type="text" id="search-input" placeholder="Search Transactions..." readonly>
+        <button id="search-button" type="button">Search</button>
+      </div>
+    </div>
+    <div class="col pt-2">
+      <div class="text-end">
+        {% if request.path == '/dashboard' %}
+          <button type="button" style="background-color: #183660; border-radius:50px;padding:8px "
+                  class="btn mt-1 text-white text-left"
+                  data-bs-toggle="modal"
+                  data-bs-target="#post-transaction-modal" id="process-btn" disabled>Process Selected Transaction(s)
+          </button>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="accordion" id="dbAccordion">
+    {% csrf_token %}
+    {% if transactions_by_db %}
+      {% for group in transactions_by_db %}
+        <div class="accordion-item mb-3">
+          <h2 class="accordion-header" id="heading-{{ group.alias }}">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ group.alias }}" aria-expanded="false" aria-controls="collapse-{{ group.alias }}">{{ group.display_name }} ({{ group.transactions|length }} records)
+            </button>
+          </h2>
+          <div id="collapse-{{ group.alias }}" class="accordion-collapse collapse" aria-labelledby="heading-{{ group.alias }}" data-bs-parent="#dbAccordion">
+            <div class="accordion-body p-0">
+              <div class="card shadow-sm p-4 border-0 m-0">
+                <table class="table table-hover pl-0 pr-0">
+                  <thead>
+                    <tr>
+                      <th scope="col"></th>
+                      <th scope="col">Date</th>
+                      <th scope="col">Amount</th>
+                      <th scope="col">Invoice Number</th>
+                      <th scope="col">Reference</th>
+                      <th scope="col">Beneficiary ID</th>
+                      <th scope="col">Beneficiary Acc</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="table-body-{{ group.alias }}" class="transaction-table-body">
+                    {% for transaction in group.transactions %}
+                      <tr id="{{ transaction.IDINVC }}">
+                        <td>
+                          <input type="checkbox" name="transaction" value="{{ transaction.IDINVC }}" disabled>
+                        </td>
+                        <td>{{ transaction.DATERMIT }}</td>
+                        <td>{{ transaction.AMTPAYM }}</td>
+                        <td>{{ transaction.IDINVC }}</td>
+                        <td>{{ transaction.REFERENCE }}</td>
+                        <td>{{ transaction.IDVEND }}</td>
+                        <td>
+                          <select name="account_name" class="form-select form-select-sm border-0" style="width: 100px">
+                            {% for vendor in vendor_info %}
+                              {% if transaction.IDVEND == vendor.vendor_id %}
+                                <option></option>
+                                <option value="{{ vendor.account_name }}">{{ vendor.account_no }}</option>
+                              {% endif %}
+                            {% endfor %}
+                          </select>
+                        </td>
+                        <td>
+                          <button type="button" data-bs-toggle="modal" data-bs-target="#delete-transaction-modal-{{ transaction.IDINVC }}" class="btn btn-danger btn-sm">
+                            <i class="bi bi-trash"></i>
+                          </button>
+                          <div id="delete-transaction-modal-{{ transaction.IDINVC }}" class="modal fade" aria-hidden="true">
+                            <div class="modal-dialog modal-dialog-centered modal" role="document">
+                              <div class="modal-content p-2">
+                                <div class="modal-header border-0 ">
+                                  <h5 class="modal-title">Confirm Action</h5>
+                                  <button type="button" class="close bg-transparent border-0" onclick="$('#delete-transaction-modal-{{ transaction.IDINVC }}').modal('hide')" aria-label="Close">
+                                    <span><i class="bi bi-x-lg"></i></span>
+                                  </button>
+                                </div>
+                                <div class="modal-body p-1">
+                                  <p>Are you sure you want to remove this transaction?</p>
+                                </div>
+                                <div class="modal-footer border-0">
+                                  <button type="button" class="btn btn-secondary" onclick="$('#delete-transaction-modal-{{ transaction.IDINVC }}').modal('hide')" aria-label="Close">Close</button>
+                                  <a href="{% url 'webapp:remove-transaction' transaction.IDINVC %}" class="btn btn-danger">Delete</a>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    {% empty %}
+                      <tr><td colspan="8">No transactions found for {{ group.alias }}</td></tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    {% else %}
+      <div class="alert alert-info">No pending transactions found across configured databases.</div>
+    {% endif %}
+  </div>
+</div>

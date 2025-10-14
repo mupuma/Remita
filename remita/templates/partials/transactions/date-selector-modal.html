@@ -1,0 +1,32 @@
+<div class="modal fade" id="date-selector-modal" tabindex="-1" role="dialog"
+     aria-labelledby="exampleModalCenterTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal" role="document">
+        <div class="modal-content p-2">
+            <div class="modal-header border-0 ">
+                <h5 class="modal-title" id="exampleModalLongTitle" >
+                    Transactions Between</h5>
+                <button type="button" class="close bg-transparent border-0" onclick="hideModal()" aria-label="Close">
+                    <span><i class="bi bi-x-lg"></i></span>
+                </button>
+            </div>
+            <div class="modal-body p-1">
+                <div class="d-flex justify-content-center p-4">
+                    <input type="text" class="form-control " id="datepicker1" placeholder="Select Start Date" style="border-radius: 5px; width:50%"  ><i class="bi bi-calender"></i>
+                </div>
+                <div class="d-flex justify-content-center p-4">
+                    <input type="text" class="form-control"  style="border-radius: 5px;width:50%" id="datepicker2" placeholder="Select End Date">
+                </div>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-secondary" onclick="hideModal()" aria-label="Close" style="border-radius:50px">Close
+                </button>
+                <button type="button" id="excel-modal-submit-button" class="btn text-white" style="background-color: #183660; border-radius:50px">
+                    Export
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+<!--<script>
+
+</script>-->

@@ -1,0 +1,25 @@
+{% extends 'base2.html' %}
+{% load static %}
+
+
+{% block title %}
+    Dashboard
+{% endblock %}
+
+{% block content %}
+    {% include 'partials/transactions/loader.html' %}
+    {% include  'partials/transactions/accordion.html'%}
+{% endblock %}
+
+{% block extra-scripts %}
+
+    <script src="{% static 'js/process_transaction.js' %}"></script>
+    <script>
+
+    </script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    
+
+{% endblock %}
