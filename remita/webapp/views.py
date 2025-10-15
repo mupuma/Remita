@@ -3,6 +3,7 @@ import io
 import json
 import os
 import tempfile
+import uuid
 from itertools import groupby
 from operator import attrgetter
 from typing import List, Dict, Any, Optional, Tuple
@@ -934,445 +935,546 @@ def checkAccNumber(request):
     return JsonResponse({'resp': list(account_list)})
 
 
-#@login_required(login_url="/")
-# @user_is_approver  # Uncomment this decorator
+def generate_unique_reference():
+    """Generate a unique reference for bulk transactions"""
+    timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+    unique_id = str(uuid.uuid4().int)[:6]
+    return f"{timestamp}{unique_id}"
 
 
-def single_fund_transfer(
-        from_bank: str,
-        to_bank: str,
-        account_number: str,
-        account_name: str,
-        amount: float,
-        narration: str,
-        secret_key: str,
-        beneficiary_email: str = "",
-        channel_id: Optional[str] = None
-) -> Dict[str, Any]:
+def perform_name_enquiry(token, bank_code, account_number):
     """
-    Process single interbank fund transfer via Remita API.
+    Perform name enquiry to validate account details before transfer
 
     Args:
-        from_bank: Source bank code
-        to_bank: Destination bank code
-        account_number: Destination account number
-        account_name: Destination account name
-        amount: Transfer amount
-        narration: Transfer narration
-        secret_key: API access token
-        beneficiary_email: Beneficiary email (optional)
-        channel_id: Channel identifier (optional)
+        token: Bearer authentication token
+        bank_code: Bank code of the destination account
+        account_number: Account number to validate
 
     Returns:
-        Dictionary containing the API response
+        dict: Response containing account name if successful, error otherwise
     """
-
-    url = "https://demo.remita.net/remita/exapp/api/v1/send/api/rpgsvc/rpg/api/v2/sp/transaction"
+    url = "https://api-demo.systemspecsng.com/services/connect-gateway/api/v1/integration/account/lookup"
 
     headers = {
-        "Authorization": f"Bearer {secret_key}",
-        "Content-Type": "application/json"
+        'Authorization': f'Bearer {token}',
+        'Content-Type': 'application/json'
     }
 
     payload = {
-        "fromBank": from_bank,
-        "toBank": to_bank,
-        "account": account_number,
-        "accountName": account_name,
-        "amount": amount,
-        "narration": narration,
-        "beneficiaryEmail": beneficiary_email
+        "sourceBankCode": bank_code,
+        "sourceAccount": account_number
     }
 
-    if channel_id:
-        payload["channelId"] = channel_id
-
     try:
-        response = requests.post(url, json=payload, headers=headers, timeout=30)
-        response.raise_for_status()
+        response = requests.post(url, headers=headers, json=payload, timeout=30)
+        response_data = response.json()
 
-        return {
-            "success": True,
-            "status_code": response.status_code,
-            "data": response.json()
-        }
-
+        if response.status_code == 200 and response_data.get('status') == '00':
+            return {
+                'success': True,
+                'data': response_data.get('data', {}),
+                'account_name': response_data.get('data', {}).get('sourceAccountName', '')
+            }
+        else:
+            return {
+                'success': False,
+                'message': response_data.get('message', 'Name enquiry failed'),
+                'status': response_data.get('status', 'unknown')
+            }
     except requests.exceptions.RequestException as e:
-        error_detail = None
-        if hasattr(e, 'response') and e.response is not None:
-            try:
-                error_detail = e.response.json()
-            except:
-                error_detail = e.response.text
-
         return {
-            "success": False,
-            "error": str(e),
-            "status_code": getattr(e.response, 'status_code', None) if hasattr(e, 'response') else None,
-            "response_data": error_detail
+            'success': False,
+            'message': f'Request error: {str(e)}'
+        }
+    except Exception as e:
+        return {
+            'success': False,
+            'message': f'Error: {str(e)}'
         }
 
 
-def check_transaction_status(
-        transaction_ref: str,
-        secret_key: str
-) -> Dict[str, Any]:
+def check_account_balance(token, account_number, bank_code):
     """
-    Check status of a transaction.
+    Check account balance before initiating transfer
 
     Args:
-        transaction_ref: Transaction reference/RRR
-        secret_key: API access token
+        token: Bearer authentication token
+        account_number: Source account number
+        bank_code: Source bank code
 
     Returns:
-        Dictionary with transaction status
+        dict: Response containing balance information
     """
-
-    url = f"https://demo.remita.net/remita/exapp/api/v1/send/api/rpgsvc/rpg/api/v2/sp/transaction/status/{transaction_ref}"
+    url = "https://demo.remita.net/remita/exapp/api/v1/send/api/rpgsvc/v3/rpg/account/balance"
 
     headers = {
-        "Authorization": f"Bearer {secret_key}",
-        "Content-Type": "application/json"
+        'Authorization': f'Bearer {token}',
+        'Content-Type': 'application/json'
+    }
+
+    payload = {
+        "sourceAccount": account_number,
+        "sourceBankCode": bank_code,
+        "transRef": generate_unique_reference()
+    }
+
+    try:
+        response = requests.post(url, headers=headers, json=payload, timeout=30)
+        response_data = response.json()
+
+        if response.status_code == 200 and response_data.get('status') == '00':
+            return {
+                'success': True,
+                'data': response_data.get('data', {}),
+                'available_balance': float(response_data.get('data', {}).get('availableBalance', 0))
+            }
+        else:
+            return {
+                'success': False,
+                'message': response_data.get('message', 'Balance check failed')
+            }
+    except Exception as e:
+        return {
+            'success': False,
+            'message': f'Error checking balance: {str(e)}'
+        }
+
+
+def initiate_bulk_payment(token, source_account_details, transactions):
+    """
+    Initiate bulk payment request
+
+    Args:
+        token: Bearer authentication token
+        source_account_details: Dict containing source account info
+            - sourceBankCode: Source bank code
+            - sourceAccount: Source account number
+            - sourceAccountName: Source account name
+            - originalBankCode: Original bank code (if different from source)
+            - originalAccountNumber: Original account number
+        transactions: List of transaction dicts, each containing:
+            - amount: Transaction amount
+            - invoice_id: Invoice/transaction reference
+            - account_no: Destination account number
+            - bank_code: Destination bank code
+            - account_name: Destination account name
+            - remarks: Transaction narration/remarks
+
+    Returns:
+        dict: Response containing batch reference and status
+    """
+    url = "https://api-demo.systemspecsng.com/services/connect-gateway/api/v1/integration/bulk/payment"
+
+    headers = {
+        'Authorization': f'Bearer {token}',
+        'Content-Type': 'application/json'
+    }
+
+    # Generate unique batch reference
+    batch_ref = generate_unique_reference()
+
+    # Calculate total amount
+    total_amount = sum(float(t['amount']) for t in transactions)
+
+    # Build transaction array
+    transaction_items = []
+    for idx, trans in enumerate(transactions, 1):
+        # Generate unique transaction reference if not provided
+        trans_ref = trans.get('invoice_id') or f"{batch_ref}{idx:04d}"
+
+        transaction_items.append({
+            "amount": float(trans['amount']),
+            "transactionRef": trans_ref,
+            "destinationBankCode": trans['bank_code'],
+            "destinationAccount": trans['account_no'],
+            "destinationAccountName": trans['account_name'],
+            "destinationNarration": trans.get('remarks', 'Bulk Transfer')
+        })
+
+    # Build request payload
+    payload = {
+        "batchRef": batch_ref,
+        "customReference": batch_ref,
+        "currency": "NGN",
+        "totalAmount": total_amount,
+        "sourceBankCode": source_account_details['sourceBankCode'],
+        "sourceAccount": source_account_details['sourceAccount'],
+        "sourceAccountName": source_account_details['sourceAccountName'],
+        "originalBankCode": source_account_details.get('originalBankCode', source_account_details['sourceBankCode']),
+        "originalAccountNumber": source_account_details.get('originalAccountNumber',
+                                                            source_account_details['sourceAccount']),
+        "sourceNarration": source_account_details.get('sourceNarration', 'Bulk Payment Transaction'),
+        "transactions": transaction_items
+    }
+
+    try:
+        response = requests.post(url, headers=headers, json=payload, timeout=60)
+        response_data = response.json()
+
+        return {
+            'success': response.status_code == 200 and response_data.get('status') == '00',
+            'batch_ref': batch_ref,
+            'response': response_data,
+            'status_code': response.status_code,
+            'message': response_data.get('message', 'Unknown response')
+        }
+    except requests.exceptions.RequestException as e:
+        return {
+            'success': False,
+            'batch_ref': batch_ref,
+            'message': f'Request error: {str(e)}'
+        }
+    except Exception as e:
+        return {
+            'success': False,
+            'batch_ref': batch_ref,
+            'message': f'Error: {str(e)}'
+        }
+
+
+def check_bulk_payment_status_summary(token, batch_ref):
+    """
+    Check overall status of bulk payment batch
+
+    Args:
+        token: Bearer authentication token
+        batch_ref: Batch reference from initiate_bulk_payment
+
+    Returns:
+        dict: Summary of batch status including success/failed counts
+    """
+    url = f"https://api-demo.systemspecsng.com/services/connect-gateway/api/v1/integration/bulk/payment/status/{batch_ref}"
+
+    headers = {
+        'Authorization': f'Bearer {token}'
     }
 
     try:
         response = requests.get(url, headers=headers, timeout=30)
-        response.raise_for_status()
+        response_data = response.json()
 
-        return {
-            "success": True,
-            "status_code": response.status_code,
-            "data": response.json()
-        }
-
-    except requests.exceptions.RequestException as e:
-        error_detail = None
-        if hasattr(e, 'response') and e.response is not None:
-            try:
-                error_detail = e.response.json()
-            except:
-                error_detail = e.response.text
-
-        return {
-            "success": False,
-            "error": str(e),
-            "status_code": getattr(e.response, 'status_code', None) if hasattr(e, 'response') else None,
-            "response_data": error_detail
-        }
-
-
-@login_required(login_url="/")
-# @user_is_approver  # Uncomment this decorator
-def check_status(request, transaction_ref):
-    """Check transaction status"""
-    try:
-        secret_key = check_and_refresh_token(request)
-
-        if not secret_key:
-            return JsonResponse({
+        if response.status_code == 200 and response_data.get('status') == '00':
+            data = response_data.get('data', {})
+            return {
+                'success': True,
+                'batch_ref': data.get('batchPaymentIdentifier'),
+                'status': data.get('status'),
+                'total_debit_amount': data.get('totalDebitAmount'),
+                'total_credited_amount': data.get('totalCreditedAmount'),
+                'transaction_count': data.get('transactionCount'),
+                'successful_transactions': data.get('successfulTransactions'),
+                'failed_transactions': data.get('failedTransactions'),
+                'raw_response': response_data
+            }
+        else:
+            return {
                 'success': False,
-                'error': 'Authentication token unavailable'
-            }, status=401)
-
-        result = check_transaction_status(
-            transaction_ref=transaction_ref,
-            secret_key=secret_key
-        )
-
-        return JsonResponse(result)
-
+                'message': response_data.get('message', 'Status check failed'),
+                'status': response_data.get('status')
+            }
     except Exception as e:
-        print(f"Error checking status: {str(e)}")
-        return JsonResponse({
+        return {
             'success': False,
-            'error': str(e)
-        }, status=500)
+            'message': f'Error checking status: {str(e)}'
+        }
 
 
-def process_bulk_fund_transfer(
-        transactions: List[Dict[str, Any]],
-        secret_key: str
-) -> Dict[str, Any]:
+def check_bulk_payment_details(token, batch_ref):
     """
-    Process multiple fund transfers sequentially.
+    Get detailed status of each transaction in bulk payment batch
 
     Args:
-        transactions: List of transaction dictionaries with keys:
-            - amount, invoice_id, account_no, account_name, bank_code, remarks
-        secret_key: API access token
+        token: Bearer authentication token
+        batch_ref: Batch reference from initiate_bulk_payment
 
     Returns:
-        Dictionary with results for all transactions
+        dict: Detailed status of each transaction in the batch
     """
+    url = f"https://api-demo.systemspecsng.com/services/connect-gateway/api/v1/integration/bulk/payment/details/{batch_ref}"
 
-    results = []
-    successful_transfers = 0
-    failed_transfers = 0
-
-    for idx, txn in enumerate(transactions):
-        result = {
-            "transaction_index": idx,
-            "invoice_id": txn.get('invoice_id'),
-            "amount": txn.get('amount'),
-            "account_no": txn.get('account_no'),
-            "account_name": txn.get('account_name'),
-            "bank_name": txn.get('bank_name')
-        }
-
-        try:
-            # Process transfer
-            transfer_result = single_fund_transfer(
-                from_bank=getattr(settings, 'REMITA_SOURCE_BANK_CODE', '011'),
-                to_bank=txn['bank_code'],
-                account_number=txn['account_no'],
-                account_name=txn['account_name'],
-                amount=float(txn['amount']),
-                narration=txn.get('remarks', 'Payment'),
-                secret_key=secret_key,
-                beneficiary_email=txn.get('email', '')
-            )
-
-            if transfer_result['success']:
-                result['status'] = 'success'
-                result['api_response'] = transfer_result['data']
-                result['transaction_ref'] = transfer_result['data'].get('transactionRef') or transfer_result[
-                    'data'].get('rrr')
-                successful_transfers += 1
-            else:
-                result['status'] = 'failed'
-                result['error'] = transfer_result.get('error')
-                result['api_response'] = transfer_result.get('response_data')
-                failed_transfers += 1
-
-        except Exception as e:
-            result['status'] = 'failed'
-            result['error'] = str(e)
-            failed_transfers += 1
-
-        results.append(result)
-
-    return {
-        "success": successful_transfers > 0,
-        "total_transactions": len(transactions),
-        "successful": successful_transfers,
-        "failed": failed_transfers,
-        "results": results
+    headers = {
+        'Authorization': f'Bearer {token}'
     }
 
+    try:
+        response = requests.get(url, headers=headers, timeout=30)
+        response_data = response.json()
 
-def build_bulk_payload_from_transactions(
-        transactions: List[Dict[str, Any]],
-        source_account: str,
-        source_bank_code: str,
-        source_account_name: str,
-        currency: str,
-        source_narration: str,
-        approval: bool,
-        pay_by_transfer: bool,
-        batch_payment_identifier: Optional[str] = None,
-        custom_reference: Optional[str] = None,
-        default_destination_narration: str = "Bulk Transfer",
-        original_payer: Optional[Dict[str, str]] = None
-) -> Tuple[Dict[str, Any], int]:
-    """
-    Build bulk transfer payload as required by Systemspecs Connect Gateway.
-
-    Returns a tuple of (payload, total_amount)
-    """
-    # Compute total amount and map transactions
-    total_amount = 0
-    txns_out = []
-    for t in transactions:
-        amt = float(t.get('amount', 0))
-        total_amount += amt
-        tx = {
-            "amount": amt,
-            "paymentIdentifier": str(t.get('invoice_id') or t.get('paymentIdentifier') or t.get('payment_id') or t.get('transaction_ref') or datetime.datetime.now().strftime("%Y%m%d%H%M%S%f")),
-            "destinationAccount": t.get('account_no') or t.get('destinationAccount'),
-            "destinationAccountName": t.get('account_name') or t.get('destinationAccountName'),
-            "destinationBankCode": t.get('bank_code') or t.get('destinationBankCode'),
-            "destinationNarration": t.get('remarks') or t.get('destinationNarration') or default_destination_narration,
-        }
-        # Optional original payer fields
-        if original_payer:
-            if original_payer.get('account_number'):
-                tx["originalPayerAccountNumber"] = original_payer['account_number']
-            if original_payer.get('bank_code'):
-                tx["originalPayerBankCode"] = original_payer['bank_code']
-            if original_payer.get('name'):
-                tx["originalPayerName"] = original_payer['name']
+        if response.status_code == 200 and response_data.get('status') == '00':
+            return {
+                'success': True,
+                'data': response_data.get('data', {}),
+                'transactions': response_data.get('data', {}).get('transactions', []),
+                'raw_response': response_data
+            }
         else:
-            # try map from item if provided
-            for k_src, k_dst in [
-                ("originalPayerAccountNumber", "originalPayerAccountNumber"),
-                ("originalPayerBankCode", "originalPayerBankCode"),
-                ("originalPayerName", "originalPayerName")
-            ]:
-                if t.get(k_src):
-                    tx[k_dst] = t.get(k_src)
-        txns_out.append(tx)
-
-    payload = {
-        "batchPaymentIdentifier": batch_payment_identifier or datetime.datetime.now().strftime("%Y%m%d%H%M%S"),
-        "totalAmount": total_amount,
-        "sourceAccount": source_account,
-        "sourceBankCode": source_bank_code,
-        "sourceAccountName": source_account_name,
-        "currency": currency,
-        "sourceNarration": source_narration,
-        "approval": approval,
-        "payByTransfer": pay_by_transfer,
-        "transactions": txns_out
-    }
-    if custom_reference:
-        payload["customReference"] = custom_reference
-
-    return payload, int(total_amount)
+            return {
+                'success': False,
+                'message': response_data.get('message', 'Details check failed'),
+                'status': response_data.get('status')
+            }
+    except Exception as e:
+        return {
+            'success': False,
+            'message': f'Error checking details: {str(e)}'
+        }
 
 
-def call_connect_gateway_bulk_transfer(secret_key: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+def log_processed_deposit(project_id, batch_ref, transaction, status_code, processed_by,
+                          transaction_type='BULK_TRANSFER'):
     """
-    Call Systemspecs Connect Gateway bulk fund transfer endpoint.
+    Log a processed transaction to the database
+
+    Args:
+        project_id: Project ID
+        batch_ref: Batch reference from bulk payment
+        transaction: Transaction dict with details
+        status_code: Status code from API (00=success, others=pending/failed)
+        processed_by: Username of person who initiated the transaction
+        transaction_type: Type of transaction (default: BULK_TRANSFER)
+
+    Returns:
+        ProcessedDeposits object or None if error
     """
-    url = "https://api-demo.systemspecsng.com/services/connect-gateway/api/v1/interbank/bulk/fund-transfer"
-    headers = {
-        "secretKey": secret_key,
-        "Content-Type": "application/json"
-    }
-    print(payload)
-    try:
-        resp = requests.post(url, headers=headers, json=payload, timeout=60)
-        data = None
-        try:
-            data = resp.json()
-        except Exception:
-            data = {"raw": resp.text}
-        resp.raise_for_status()
-        return {"success": True, "status_code": resp.status_code, "data": data}
-    except requests.exceptions.RequestException as e:
-        err = None
-        if hasattr(e, 'response') and e.response is not None:
-            try:
-                err = e.response.json()
-            except Exception:
-                err = getattr(e.response, 'text', None)
-        return {"success": False, "error": str(e), "status_code": getattr(e.response, 'status_code', None), "response_data": err}
-
-
-
-
-
-
-# ---------- Connect Gateway (Interbank) bulk transfer helper ----------
-
-
-
-# ---------- Connect Gateway (Integration) bulk payment ----------
-
-def build_integration_bulk_payload(body: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Normalize incoming body to match the integration bulk payment schema.
-    If keys already match, this is a no-op; otherwise, try mapping from our
-    interbank schema to the integration schema.
-    """
-    payload = dict(body) if isinstance(body, dict) else {}
-
-    # If batchRef is missing but batchPaymentIdentifier/customReference present
-    if 'batchRef' not in payload:
-        if 'batchPaymentIdentifier' in payload:
-            payload['batchRef'] = payload.pop('batchPaymentIdentifier')
-        elif 'batch_ref' in payload:
-            payload['batchRef'] = payload.pop('batch_ref')
-
-    # Map transactions array item keys if needed
-    txns = payload.get('transactions') or []
-    mapped = []
-    for t in txns:
-        if all(k in t for k in ['transactionRef','destinationBankCode','destinationAccount','destinationAccountName','amount']):
-            mapped.append(t)
-            continue
-        mapped.append({
-            'transactionRef': t.get('transactionRef') or t.get('paymentIdentifier') or t.get('invoice_id') or t.get('transaction_ref'),
-            'destinationBankCode': t.get('destinationBankCode') or t.get('bank_code'),
-            'destinationAccount': t.get('destinationAccount') or t.get('account_no'),
-            'destinationAccountName': t.get('destinationAccountName') or t.get('account_name'),
-            'destinationNarration': t.get('destinationNarration') or t.get('remarks') or 'Bulk Transfer',
-            'amount': float(t.get('amount', 0)) if isinstance(t.get('amount'), (int,float,str)) else 0,
-        })
-    if txns:
-        payload['transactions'] = mapped
-
-    # Compute totalAmount if missing
-    if 'totalAmount' not in payload or not payload.get('totalAmount'):
-        try:
-            payload['totalAmount'] = int(sum(float(x.get('amount',0)) for x in payload.get('transactions', [])))
-        except Exception:
-            pass
-
-    return payload
-
-
-def call_connect_gateway_integration_bulk_payment(bearer_token: str, payload: Dict[str, Any]) -> Dict[str, Any]:
-    url = 'https://api-demo.systemspecsng.com/services/connect-gateway/api/v1/integration/bulk/payment'
-    headers = {
-        'Authorization': f'Bearer {bearer_token}',
-        'Content-Type': 'application/json'
-    }
-    try:
-        resp = requests.post(url, headers=headers, json=payload, timeout=90)
-        try:
-            data = resp.json()
-        except Exception:
-            data = {'raw': resp.text}
-        if 200 <= resp.status_code < 300:
-            return {'success': True, 'status_code': resp.status_code, 'data': data}
-        return {'success': False, 'status_code': resp.status_code, 'response_data': data}
-    except requests.exceptions.RequestException as e:
-        err = None
-        if hasattr(e, 'response') and e.response is not None:
-            try:
-                err = e.response.json()
-            except Exception:
-                err = getattr(e.response, 'text', None)
-        return {'success': False, 'error': str(e), 'status_code': getattr(e.response, 'status_code', None), 'response_data': err}
-
-
-@csrf_exempt
-def integration_bulk_payment(request):
-    """
-    Proxy endpoint to post bulk payments to the Connect Gateway integration API.
-    Accepts JSON body matching the user's cURL. Authorization bearer token can be provided
-    in the request Authorization header; otherwise, we try to use the session token.
-    """
-    if request.method != 'POST':
-        return JsonResponse({'message': 'GET Request Not Allowed'}, status=400)
+    from .models import ProcessedDeposits, Projects
 
     try:
-        # Get bearer token from incoming request or session
-        auth_header = request.headers.get('Authorization') or request.META.get('HTTP_AUTHORIZATION')
-        bearer = None
-        if auth_header and auth_header.lower().startswith('bearer '):
-            bearer = auth_header.split(' ', 1)[1].strip()
-        if not bearer:
-            bearer = check_and_refresh_token(request)
-        if not bearer:
-            return JsonResponse({'success': False, 'message': 'Missing Authorization Bearer token'}, status=401)
+        # Determine status based on status code
+        # Status: 0=Pending, 1=Success, 2=Failed
+        if status_code == '00':
+            status = 1  # Success
+        elif status_code in ['01', '02', '04', '13', '16', '17', '18', '22', '24',
+                             '26', '27', '28', '29', '30', '31', '33', '34', '36',
+                             '37', '38', '42', '43', '44', '46', '50', '51', '54',
+                             '55', '58', '59', '60', '65', '68', '71', '72', '74',
+                             '75', '76', '77', '78', '79', '91', '94', '96']:
+            status = 2  # Failed
+        else:
+            status = 0  # Pending (all other codes including 001, 61, 07, 09, etc.)
 
-        # Parse JSON body
-        try:
-            body = json.loads(request.body.decode('utf-8')) if request.body else {}
-        except Exception as e:
-            return JsonResponse({'success': False, 'message': 'Invalid JSON body', 'error': str(e)}, status=400)
+        project = Projects.objects.get(id=project_id)
 
-        # Normalize payload and backfill totals if needed
-        payload = build_integration_bulk_payload(body)
+        deposit = ProcessedDeposits.objects.create(
+            project=project,
+            batch_identifier=batch_ref,
+            invoiceid=transaction.get('invoice_id', ''),
+            vendorid=transaction.get('vendor_id', ''),
+            vendorname=transaction.get('account_name', ''),
+            transaction_date=transaction.get('date', ''),
+            amount=str(transaction.get('amount', 0)),
+            status=status,
+            transaction_type=transaction_type,
+            processed_by=processed_by
+        )
 
-        # If originalBankCode/Number provided in body, keep as-is; otherwise allow optional mapping
-        # No extra handling needed here since we forward the payload.
-
-        result = call_connect_gateway_integration_bulk_payment(bearer, payload)
-        status = 200 if result.get('success') else (result.get('status_code') or 500)
-        return JsonResponse(result, status=status, safe=False)
+        return deposit
 
     except Exception as e:
-        return JsonResponse({'success': False, 'message': 'Error processing request', 'error': str(e)}, status=500)
+        print(f"Error logging deposit: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return None
+
+
+def update_transaction_status(invoice_id, status_code, response_message=''):
+    """
+    Update the status of an existing transaction
+
+    Args:
+        invoice_id: Invoice ID to update
+        status_code: New status code from API
+        response_message: Optional message from API response
+
+    Returns:
+        bool: True if updated successfully, False otherwise
+    """
+    from .models import ProcessedDeposits
+
+    try:
+        # Determine status based on status code
+        if status_code == '00':
+            status = 1  # Success
+        elif status_code in ['01', '02', '04', '13', '16', '17', '18', '22', '24',
+                             '26', '27', '28', '29', '30', '31', '33', '34', '36',
+                             '37', '38', '42', '43', '44', '46', '50', '51', '54',
+                             '55', '58', '59', '60', '65', '68', '71', '72', '74',
+                             '75', '76', '77', '78', '79', '91', '94', '96']:
+            status = 2  # Failed
+        else:
+            status = 0  # Pending
+
+        deposit = ProcessedDeposits.objects.get(invoiceid=invoice_id)
+        deposit.status = status
+        deposit.save()
+
+        print(f"Updated transaction {invoice_id} to status {status}")
+        return True
+
+    except ProcessedDeposits.DoesNotExist:
+        print(f"Transaction {invoice_id} not found")
+        return False
+    except Exception as e:
+        print(f"Error updating transaction status: {str(e)}")
+        return False
+
+
+def post_transactions(request):
+    """
+    Django view to handle bulk payment posting
+    Integrates with existing transaction data structure and logs all transactions
+    """
+    if request.method == 'POST':
+        try:
+            # Check and get valid token
+            secret_key = check_and_refresh_token(request)
+
+            if not secret_key:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'Payment service unavailable. Please logout and login again.',
+                    'error': 'No valid authentication token'
+                }, status=401)
+
+            # Parse incoming transactions
+            transacs = json.loads(request.POST.get('transactions'))
+            project_id = request.POST.get('project_id', 1)
+            processed_by = request.user.username if hasattr(request, 'user') else 'system'
+
+            print("Raw transactions:", transacs)
+
+            transactions = []
+            for entry in transacs:
+                values = entry['values']
+                transaction_element = {
+                    'date': values[0],
+                    'amount': values[1],
+                    'invoice_id': values[2],
+                    'remarks': values[3],
+                    'vendor_id': values[4],
+                    'account_name': values[5],
+                    'account_no': values[7],
+                    'bank_code': values[8],
+                    'bank_name': values[9],
+                    'email': values[10] if len(values) > 10 else ''
+                }
+                transactions.append(transaction_element)
+
+            print("Parsed transactions:", transactions)
+
+            # Get source account details from request or settings
+            source_account_details = {
+                'sourceBankCode': getattr(settings.REMITA_SOURCE_BANK_CODE, '925'),
+                'sourceAccount':getattr(settings.REMITA_SOURCE_ACCOUNT_NO, '9256258124'),
+                'sourceAccountName': getattr(settings.REMITA_SOURCE_ACCOUNT_NAME, '9256258124'),
+                'originalBankCode': getattr(settings.REMITA_SOURCE_BANK_CODE, '925'),
+                'originalAccountNumber': getattr(settings.REMITA_SOURCE_ACCOUNT_NO, '9256258124'),
+                'sourceNarration': request.POST.get('narration', 'Bulk Payment Transaction')
+            }
+
+            # Optional: Check balance before initiating
+            balance_check = check_account_balance(
+                secret_key,
+                source_account_details['sourceAccount'],
+                source_account_details['sourceBankCode']
+            )
+
+            if balance_check['success']:
+                total_amount = sum(float(t['amount']) for t in transactions)
+                if balance_check['available_balance'] < total_amount:
+                    return JsonResponse({
+                        'success': False,
+                        'message': 'Insufficient balance',
+                        'available_balance': balance_check['available_balance'],
+                        'required_amount': total_amount
+                    }, status=400)
+
+            # Initiate bulk payment
+            result = initiate_bulk_payment(secret_key, source_account_details, transactions)
+            batch_ref = result['batch_ref']
+
+            # Log all transactions to database regardless of success/failure
+            logged_count = 0
+            for transaction in transactions:
+                # Get status code from response
+                status_code = result.get('response', {}).get('status', '81')  # Default to pending
+
+                deposit = log_processed_deposit(
+                    project_id=project_id,
+                    batch_ref=batch_ref,
+                    transaction=transaction,
+                    status_code=status_code,
+                    processed_by=processed_by,
+                    transaction_type='BULK_TRANSFER'
+                )
+
+                if deposit:
+                    logged_count += 1
+                    print(f"Logged transaction: {transaction['invoice_id']}")
+
+            if result['success']:
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Bulk payment initiated successfully',
+                    'batch_ref': batch_ref,
+                    'logged_transactions': logged_count,
+                    'total_transactions': len(transactions),
+                    'data': result['response']
+                })
+            else:
+                return JsonResponse({
+                    'success': False,
+                    'message': result['message'],
+                    'batch_ref': batch_ref,
+                    'logged_transactions': logged_count,
+                    'total_transactions': len(transactions),
+                    'data': result.get('response')
+                }, status=400)
+
+        except Exception as e:
+            print(f"Error processing transactions: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return JsonResponse({
+                'success': False,
+                'message': 'Error processing transactions',
+                'error': str(e)
+            }, status=500)
+
+    return JsonResponse({'message': 'GET Request Not Allowed'}, status=400)
+
+
+def check_transaction_status(request, batch_ref):
+    """
+    Django view to check status of bulk payment
+    """
+    if request.method == 'GET':
+        try:
+            # Get valid token
+            secret_key = check_and_refresh_token(request)
+
+            if not secret_key:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'Authentication required'
+                }, status=401)
+
+            # Get summary status
+            summary = check_bulk_payment_status_summary(secret_key, batch_ref)
+
+            # Get detailed status
+            details = check_bulk_payment_details(secret_key, batch_ref)
+
+            return JsonResponse({
+                'success': True,
+                'summary': summary,
+                'details': details
+            })
+
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': str(e)
+            }, status=500)
+
+    return JsonResponse({'message': 'Only GET requests allowed'}, status=400)

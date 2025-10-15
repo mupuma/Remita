@@ -22,4 +22,5 @@ class CustmonUserAdmin(UserAdmin):
 
 # Register your models here.
 admin.site.register(BankDetails)
+admin.site.register(Projects)
 admin.site.register(Users,CustmonUserAdmin)

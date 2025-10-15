@@ -51,9 +51,12 @@
                             <th scope="col">Invoice Number</th>
                             <th scope="col">Beneficiary ID</th>
                             <th scope="col">Beneficiary Name</th>
-                            <th scope="col">Trans Type</th>
+                            <th scope="col">Project</th>
+                            <th scope="col">Batch</th>
+                            <th scope="col">Status</th>
                             <th scope="col">Processed By</th>
                             <th scop="col">Timestamp</th>
+                            <th scope="col">Actions</th>
                         </tr>
 
                         </thead>
@@ -65,9 +68,26 @@
                             <td>{{ transaction.invoiceid }}</td>
                             <td>{{ transaction.vendorid }}</td>
                             <td>{{ transaction.vendorname }}</td>
-                            <td>{{ transaction.transaction_type }}</td>
+                            <td>{{ transaction.project.project_name }}</td>
+                            <td>{{ transaction.batch_identifier }}</td>
+                            <td>
+                                {% if transaction.status == 0 %}
+                                    Pending
+                                {% elif transaction.status == 1 %}
+                                    Success
+                                {% elif transaction.status == 2 %}
+                                    Failed
+                                {% else %}
+                                    Unknown
+                                {% endif %}
+                            </td>
                             <td>{{ transaction.processed_by }}</td>
                             <td>{{ transaction.timestamp }}</td>
+                            <td>
+                                <button type="button" class="btn btn-sm btn-primary btn-view-status" data-batch="{{ transaction.batch_identifier }}">
+                                    View Status
+                                </button>
+                            </td>
                             </tbody>
                         {% endfor %}
 
@@ -81,11 +101,58 @@
 {% endblock %}
 
 {% block extra-scripts %}
+    <!-- Status Modal -->
+    <div class="modal fade" id="statusModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Batch Status</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="statusModalBody">
+                        <p class="text-muted">Fetching status...</p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         $(document).ready(function () {
             $("#toggle-btn").click(function () {
                 $("#chart-div").toggle();
             })
+
+            $(document).on('click', '.btn-view-status', function () {
+                const batchRef = $(this).data('batch');
+                if (!batchRef) return;
+                const modal = new bootstrap.Modal(document.getElementById('statusModal'));
+                $('#statusModalBody').html('<p class="text-muted">Fetching status...</p>');
+                modal.show();
+                fetch(`/status/${batchRef}/`)
+                    .then(resp => resp.json())
+                    .then(data => {
+                        if (!data.success) {
+                            $('#statusModalBody').html(`<div class="alert alert-danger">${data.message || 'Unable to fetch status'}</div>`);
+                            return;
+                        }
+                        const summary = data.summary || {};
+                        const details = data.details || {};
+                        let html = '';
+                        html += '<h6>Summary</h6>';
+                        html += '<pre class="bg-light p-2">' + JSON.stringify(summary, null, 2) + '</pre>';
+                        html += '<h6>Details</h6>';
+                        html += '<pre class="bg-light p-2">' + JSON.stringify(details, null, 2) + '</pre>';
+                        $('#statusModalBody').html(html);
+                    })
+                    .catch(err => {
+                        $('#statusModalBody').html(`<div class="alert alert-danger">${err}</div>`);
+                    });
+            });
         })
     </script>
     <script>
