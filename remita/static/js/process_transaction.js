@@ -30,25 +30,23 @@ addEventListenersToSelect(rows)
 
 function addEventListenersToSelect(rows) {
     rows.forEach(row => {
-        const selectTags = row.querySelectorAll('select');
-        selectTags.forEach(select => {
-            select.addEventListener('change', () => {
-
-                const accountName = selectTags[0].value;
-
-                const trow = select.closest('tr');
+        const acctInputs = row.querySelectorAll('.account-live-input');
+        acctInputs.forEach(input => {
+            input.addEventListener('input', () => {
+                const accountName = (input.value || '').trim();
+                const trow = input.closest('tr');
                 const inputElement = trow.querySelector('input[name="transaction"]');
                 const value = inputElement.value;
-                if ( accountName) {
+                if (accountName) {
                     if (value) {
                         inputElement.removeAttribute('disabled');
                     } else {
                         inputElement.setAttribute('disabled', 'disabled');
                     }
                     sessionStorage.setItem("accountName-" + value, accountName);
-                    console.log(sessionStorage)
                 } else {
                     sessionStorage.removeItem("accountName-" + value);
+                    inputElement.setAttribute('disabled', 'disabled');
                 }
             });
         });
@@ -60,19 +58,20 @@ function addCheckBoxandSelectValues(rows) {
         if (row.id) {
             const value = row.id;
             const inputElement = row.querySelector('input[name="transaction"]');
-            const selectTags = row.querySelectorAll('select');
+            const acctInput = row.querySelector('.account-live-input');
             const accountName = sessionStorage.getItem("accountName-" + value);
             const checkbox = sessionStorage.getItem(value)
-            if (accountName ) {
-                if (checkbox) {
-                    inputElement.checked = true
+            if (acctInput) {
+                if (accountName) {
+                    acctInput.value = accountName;
+                    if (checkbox) {
+                        inputElement.checked = true;
+                    }
+                    inputElement.removeAttribute('disabled');
+                } else {
+                    acctInput.value = '';
+                    inputElement.setAttribute('disabled', 'disabled');
                 }
-                selectTags[0].value = accountName;
-                inputElement.removeAttribute('disabled');
-            } else {
-                selectTags[0].value = ''; // Reset the select values if not found in sessionStorage
-
-                inputElement.setAttribute('disabled', 'disabled');
             }
         }
     });
@@ -81,12 +80,21 @@ function addCheckBoxandSelectValues(rows) {
 
 function addEventListenerToCheckboxes(checkboxes) {
     checkboxes.forEach(cb => {
-        const rowData = {
-            values: [],
-        };
         cb.addEventListener('change', () => {
+            const rowData = {
+                values: [],
+                project_id: null,
+                project_name: null,
+            };
             if (cb.checked) {
                 const row = cb.closest('tr');
+                // capture project info from tbody
+                const tbody = row ? row.closest('tbody') : null;
+                if (tbody) {
+                    const pid = tbody.dataset.projectId || '1';
+                    rowData.project_id = parseInt(pid, 10);
+                    rowData.project_name = tbody.dataset.projectName || '';
+                }
 
                 // Iterate over each cell and construct values in expected order
                 for (let j = 0; j < row.cells.length; j++) {
@@ -98,35 +106,35 @@ function addEventListenerToCheckboxes(checkboxes) {
                         continue;
                     }
 
-                    // Account select column
+                    // Account input + datalist column
                     if (j === 6) {
-                        const select = cell.querySelector('.form-select');
+                        const input = cell.querySelector('.account-live-input');
+                        const accountName = input ? (input.value || '').trim() : '';
                         // account_name
-                        rowData.values.push(select ? select.value : '');
-                        // default transaction_type (since selector removed in current UI)
+                        rowData.values.push(accountName);
+                        // default transaction_type (kept for index compatibility)
                         rowData.values.push('');
-                        // fetch and append account details: account_no, sort_code, bicCode, bank_name
-                        if (select && select.value) {
-                            fetch(`account_details/?account_name=${select.value}`)
-                                .then(response => response.json())
-                                .then(res => {
-                                    const det = res.account_details && res.account_details[0] ? res.account_details[0] : {};
-                                    rowData.values.push(det.account_no || '');
-                                    rowData.values.push(det.bank_code || '');
-                                    rowData.values.push(det.bank_name || '');
-                                })
-                                .catch(() => {
-                                    rowData.values.push('');
-                                    rowData.values.push('');
-                                    rowData.values.push('');
-                                });
-                        } else {
-                            rowData.values.push('');
-                            rowData.values.push('');
 
-                            rowData.values.push('');
+                        // Try to resolve details from the selected datalist option
+                        let accountNo = '';
+                        let bankCode = '';
+                        let bankName = '';
+                        if (input && accountName) {
+                            const listId = input.getAttribute('list');
+                            const datalistEl = listId ? document.getElementById(listId) : null;
+                            if (datalistEl) {
+                                const options = Array.from(datalistEl.querySelectorAll('option'));
+                                const match = options.find(opt => (opt.value || '').trim() === accountName);
+                                if (match) {
+                                    accountNo = match.getAttribute('data-account-no') || '';
+                                    bankCode = match.getAttribute('data-bank-code') || '';
+                                    bankName = match.getAttribute('data-bank-name') || '';
+                                }
+                            }
                         }
-
+                        rowData.values.push(accountNo);
+                        rowData.values.push(bankCode);
+                        rowData.values.push(bankName);
                     }
 
                     // Ignore checkbox column (0) and actions column (7)
@@ -226,24 +234,40 @@ function createModalTableBody(tableBodyID) {
 
     let tableBody = document.getElementById(tableBodyID);
     tableBody.innerHTML = '';
+
+    // Group items by project_id
+    const groups = {};
     combinedValues.forEach(item => {
-        const tr = document.createElement('tr');
-        console.log(item)
-        tr.innerHTML = `
-            <td>${item.values[0]}</td>
-            <td>${item.values[1]}</td>
-            <td>${item.values[2]}</td>
-            <td>${item.values[3]}</td>
-            <td>${item.values[4]}</td>
-            <td>${item.values[5]}</td>
-            <td>${item.values[7]}</td>
-            <td>${item.values[8]}</td>
-            <td>${item.values[9]}</td>
-            `
+        const pid = item.project_id || 0;
+        if (!groups[pid]) {
+            groups[pid] = { name: item.project_name || ('Project ' + pid), items: [] };
+        }
+        groups[pid].items.push(item);
+    });
 
+    // Render groups with a header row per project
+    Object.keys(groups).forEach(pid => {
+        const group = groups[pid];
+        const headerRow = document.createElement('tr');
+        headerRow.innerHTML = `<td colspan="9" class="fw-bold bg-light">${group.name} (Project ID: ${pid})</td>`;
+        tableBody.appendChild(headerRow);
 
-        tableBody.appendChild(tr);
-    })
+        group.items.forEach(item => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${item.values[0]}</td>
+                <td>${item.values[1]}</td>
+                <td>${item.values[2]}</td>
+                <td>${item.values[3]}</td>
+                <td>${item.values[4]}</td>
+                <td>${item.values[5]}</td>
+                <td>${item.values[7]}</td>
+                <td>${item.values[8]}</td>
+                <td>${item.values[9]}</td>
+                `;
+            tableBody.appendChild(tr);
+        });
+    });
 
 }
 
@@ -457,7 +481,7 @@ if (modalSubmitBtn){
     modalSubmitBtn.addEventListener('click', (e) => {
         loader.classList.remove('d-none')
         e.preventDefault()
-    ///    // Send selected invoice numbers & transaction type to server using ajax
+        // Send selected invoice numbers & transaction type to server using ajax
         $.ajax({
             type: 'POST',
             url: 'post-transactions/',
@@ -466,35 +490,66 @@ if (modalSubmitBtn){
                 'transactions': JSON.stringify(combinedValues),
                 'invoice_ids[]': JSON.stringify(selectedVendorsInvoiceNumber),
                 'transaction_type': JSON.stringify(selectedTransactionType),
-                //'account_name':JSON.stringify(selectedAccountName)
             },
             dataType: 'json',
-        }).then(res => {
-            loader.classList.add('d-none')
-            if (res.stats !== 200) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Your Request Could Not Be processed:',
-                    text: res.resps,
-                    confirmButtonText: "OK",
-                    timer: 2000,
-                    footer: 'Try Again Later'
-                })
-                $('#post-transaction-modal').modal('hide');
-            } else {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Your Request Has Been Successfully Processed:',
-                    confirmButtonText: "OK",
-                    timer: 2000,
-                    text: res.resps,
-                }).then(() => {
+        })
+        .done(res => {
+            loader.classList.add('d-none');
+            $('#post-transaction-modal').modal('hide');
+
+            // Prefer backend-provided messages
+            const extractMessage = (payload) => {
+                if (!payload) return '';
+                const d = payload.data || {};
+                // Common backend fields
+                return (
+                    payload.message ||
+                    d.message ||
+                    d.responseMessage ||
+                    d.statusMessage ||
+                    d.status ||
+                    payload.error ||
+                    (typeof payload === 'string' ? payload : '') ||
+                    ''
+                );
+            };
+
+            const msg = extractMessage(res) || 'Request processed.';
+            const icon = res.success ? 'success' : 'error';
+            const title = res.success ? 'Transaction processing' : 'Transaction failed';
+
+            Swal.fire({
+                icon: icon,
+                title: title,
+                text: msg,
+                confirmButtonText: 'OK'
+            }).then(() => {
+                if (res.success) {
+                    // If backend returns a dashboard redirect previously, keep behavior
                     window.location.href = 'dashboard';
-                });
-            }
-    
-        }).catch(err => console.log(err));
-    
+                }
+            });
+        })
+        .fail((xhr) => {
+            loader.classList.add('d-none');
+            $('#post-transaction-modal').modal('hide');
+
+            let payload = null;
+            try {
+                payload = xhr.responseJSON ? xhr.responseJSON : JSON.parse(xhr.responseText);
+            } catch (_) {}
+
+            const d = payload && payload.data ? payload.data : {};
+            const msg = (payload && (payload.message || payload.error)) || d.message || d.responseMessage || d.statusMessage || d.status || 'Your request could not be processed.';
+
+            Swal.fire({
+                icon: 'error',
+                title: 'Transaction failed',
+                text: msg,
+                confirmButtonText: 'OK',
+                footer: 'Try again later'
+            });
+        });
     });
 }
 
