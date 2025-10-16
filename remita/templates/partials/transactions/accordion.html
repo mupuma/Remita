@@ -1,4 +1,5 @@
 {% load static %}
+{% include  'partials/transactions/popup.html' %}
 <div class="container pt-5">
   <div class="row mb-5 pt-3">
     <div class="col pt-1">
@@ -52,7 +53,7 @@
                       <th>Actions</th>
                     </tr>
                   </thead>
-                  <tbody id="table-body-{{ group.alias }}" class="transaction-table-body">
+                  <tbody id="table-body-{{ group.alias }}" class="transaction-table-body" data-project-id="{{ group.project_id }}" data-project-name="{{ group.display_name }}" data-project-code="{{ group.alias }}">
                     {% for transaction in group.transactions %}
                       <tr id="{{ transaction.IDINVC }}">
                         <td>
@@ -64,14 +65,8 @@
                         <td>{{ transaction.REFERENCE }}</td>
                         <td>{{ transaction.IDVEND }}</td>
                         <td>
-                          <select name="account_name" class="form-select form-select-sm border-0" style="width: 100px">
-                            {% for vendor in vendor_info %}
-                              {% if transaction.IDVEND == vendor.vendor_id %}
-                                <option></option>
-                                <option value="{{ vendor.account_name }}">{{ vendor.account_no }}</option>
-                              {% endif %}
-                            {% endfor %}
-                          </select>
+                          <input type="text" name="account_name" class="form-control form-control-sm border-0 account-live-input" style="width: 180px" placeholder="Search account..." list="acct-list-{{ transaction.IDINVC }}" data-vendor="{{ transaction.IDVEND }}">
+                          <datalist id="acct-list-{{ transaction.IDINVC }}" class="account-datalist"></datalist>
                         </td>
                         <td>
                           <button type="button" data-bs-toggle="modal" data-bs-target="#delete-transaction-modal-{{ transaction.IDINVC }}" class="btn btn-danger btn-sm">
@@ -113,3 +108,38 @@
     {% endif %}
   </div>
 </div>
+<script>
+// Live search for account numbers by account name (same as in table.html)
+(function(){
+  function populateList(datalistEl, items){
+    while(datalistEl.firstChild){ datalistEl.removeChild(datalistEl.firstChild); }
+    items.forEach(function(it){
+      var opt = document.createElement('option');
+      opt.value = it.account_name;
+      opt.setAttribute('label', it.account_name + ' — ' + it.account_no);
+      opt.setAttribute('data-account-no', it.account_no);
+      opt.setAttribute('data-bank-code', it.bank_code || '');
+      opt.setAttribute('data-bank-name', it.bank_name || '');
+      opt.setAttribute('data-vendor-id', it.vendor_id || '');
+      datalistEl.appendChild(opt);
+    });
+  }
+
+  function handleInput(e){
+    var input = e.target;
+    if(!input.classList.contains('account-live-input')) return;
+    var q = (input.value || '').trim();
+    if(q.length < 2) return;
+    var vendor = input.getAttribute('data-vendor') || '';
+    var listId = input.getAttribute('list');
+    var datalistEl = listId ? document.getElementById(listId) : null;
+    if(!datalistEl) return;
+    fetch('/bank_details/live-search/?q=' + encodeURIComponent(q) + (vendor ? ('&vendor_id=' + encodeURIComponent(vendor)) : ''))
+      .then(function(r){ return r.json(); })
+      .then(function(data){ populateList(datalistEl, data.results || []); })
+      .catch(function(err){ console.warn('Live search error', err); });
+  }
+
+  document.addEventListener('input', handleInput, true);
+})();
+</script>

@@ -3,6 +3,7 @@ import io
 import json
 import os
 import tempfile
+import traceback
 import uuid
 from itertools import groupby
 from operator import attrgetter
@@ -26,7 +27,9 @@ from remita import settings
 from .forms import BankDetailsForm
 from .permissions import user_is_approver, user_is_support_staff
 from .services import *
-from .models import ProcessedDeposits, BankDetails, Users, UserLoginHistory, Appym, Aptcr, Apven
+from .models import *
+from .models import Projects
+
 import requests
 import pandas as pd
 
@@ -89,36 +92,46 @@ def get_remita_token(username: str, password: str) -> Dict[str, Any]:
         }
 
 
-def check_and_refresh_token(request):
+def check_and_refresh_token(request=None):
     """
     Check if token exists and is valid. Refresh if needed.
+    Uses database-backed storage instead of sessions.
     Returns token or None if unavailable.
     """
-    token = request.session.get('remita_token')
-    token_expires = request.session.get('remita_token_expires')
 
-    if not token or not token_expires:
-        return None
 
-    # Check if token has expired (with 5 minute buffer)
-    current_time = now().timestamp()
-    if current_time >= (token_expires - 300):
-        # Token expired or about to expire, refresh it
+    auth = RemitaAuth.objects.first()
+
+    # If no record exists or no token stored, fetch a new one
+    if not auth or not auth.token or not auth.expires_at:
         remita_username = getattr(settings, 'REMITA_API_PUBLIC_KEY', '2LEPNR6RZQAD0J7G')
         remita_password = getattr(settings, 'REMITA_API_SECRET_KEY', 'GZU4BP1PRAKPBE1SD27EW6HH2QMM0US5')
-
         token_result = get_remita_token(remita_username, remita_password)
-
         if token_result['success']:
-            request.session['remita_token'] = token_result['token']
-            request.session['remita_token_expires'] = (
-                    now().timestamp() + token_result['expires_in']
-            )
-            return token_result['token']
-        else:
-            return None
+            expires_at = now() + datetime.timedelta(seconds=token_result['expires_in'])
+            if not auth:
+                auth = RemitaAuth.objects.create(token=token_result['response_data']['data'][0]['accessToken'], expires_at=expires_at)
+            else:
+                auth.token = token_result['response_data']['data'][0]['accessToken']
+                auth.expires_at = expires_at
+                auth.save(update_fields=['token', 'expires_at', 'updated_at'])
+            return token_result['response_data']['data'][0]['accessToken']
+        return None
 
-    return token
+    # If token exists, check if it's expiring soon (5-minute buffer)
+    buffer = datetime.timedelta(minutes=5)
+    if now() >= (auth.expires_at - buffer):
+        remita_username = getattr(settings, 'REMITA_API_PUBLIC_KEY', '2LEPNR6RZQAD0J7G')
+        remita_password = getattr(settings, 'REMITA_API_SECRET_KEY', 'GZU4BP1PRAKPBE1SD27EW6HH2QMM0US5')
+        token_result = get_remita_token(remita_username, remita_password)
+        if token_result['success']:
+            auth.token = token_result['response_data']['data'][0]['accessToken']
+            auth.expires_at = now() + datetime.timedelta(seconds=token_result['expires_in'])
+            auth.save(update_fields=['token', 'expires_at', 'updated_at'])
+            return auth.token
+        return None
+
+    return auth.token
 
 def is_ajax(request):
     return request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest'
@@ -180,13 +193,19 @@ def UserLogin(request):
 
                 # Get Remita token
                 token_result = get_remita_token(remita_username, remita_password)
-
+                print(token_result)
                 if token_result['success']:
-                    # Store token in session
-                    request.session['remita_token'] = token_result['token']
-                    request.session['remita_token_expires'] = (
-                            now().timestamp() + token_result['expires_in']
-                    )
+                    # Store token in database (singleton row)
+
+                    expires_at = now() + datetime.timedelta(seconds=token_result['expires_in'])
+                    auth = RemitaAuth.objects.first()
+                    if not auth:
+                        RemitaAuth.objects.create(token=token_result['response_data']['data'][0]['accessToken'],
+                                                  expires_at=expires_at)
+                    else:
+                        auth.token = token_result['response_data']['data'][0]['accessToken']
+                        auth.expires_at = expires_at
+                        auth.save(update_fields=['token', 'expires_at', 'updated_at'])
                     print(f"Remita token acquired successfully, expires in {token_result['expires_in']} seconds")
 
                     # Login user
@@ -534,81 +553,16 @@ Functions to Approve and Post Transactions
 def homepage(request):
     # Build transactions grouped by DB alias for accordion display
     vendor_info = BankDetails.objects.all()
-    processed_dep = ProcessedDeposits.objects.filter(transaction_date__gte="2025-01-01")
     vendors = [vendor.vendor_id for vendor in vendor_info]
-    processed = [processed.invoiceid for processed in processed_dep]
 
-    # Friendly names mapping (fallback to alias if not found)
-    friendly_names = {
-        'ACCDAT': 'IHVN Accumulated Fund Financial Database',
-        'ACTDAT': 'Action Grant Financial Database',
-        'ADADAT': 'IHV Adapt Grant Financial Database',
-        'ANRDAT': 'Accelerating Nutritional Results In Nigeria (Anrin) Project',
-        'APTDAT': 'Africa Postdoctoral Training Initiative (APTI) Fellowship',
-        'ASPDAT': 'ASPIRE Project Financial Database',
-        'BEADAT': 'Beaming Grant Financial Database',
-        'BEGDAT': 'IHVN/BEGET Project Financial Database',
-        'BRIDAT': 'HIV Vista Project (BRILLIANT Consortium) Financial Database',
-        'BUFDAT': 'Building Fund Financial Database',
-        'BUTDAT': 'Building Trust Grant Financial Database',
-        'CAMDAT': 'CAMP Study Project Financial Database',
-        'CASDAT': 'Case Inspire Grant Financial Database',
-        'CIPDAT': 'Cipher Research Grant Financial Database',
-        'CLEDAT': 'IHVN/Clear Grant Financial Database',
-        'D2EDAT': 'D2EFT Study Grant Financial Database',
-        'EFADAT': 'IHVN/Gesundes emergency food aid grants financial Database',
-        'ENHDAT': 'ENHANCE Project Financial Database',
-        'EQUDAT': 'EQUAL Project Financial Database',
-        'EXCDAT': 'EXCEL Rite  Project Financial Database',
-        'EXPDAT': 'EXPAND Project Financial Database',
-        'FELDAT': 'EDCTP Fellowship Financial Database',
-        'GC7DAT': 'Global Fund GC7 Project Financial Database',
-        'GDRSDA': 'NIH/IHVN GDRS  Ghana Project Financial Database',
-        'GESDAT': 'Gesundes Afrika Project Financial database',
-        'GFSDAT': 'IHVN/Gesunde Food Security Financial Database',
-        'GFTBSR': 'Global Fund TB Sub-Recipients Financial Database',
-        'GFTDAT': 'Global Fund/CCM/TB Grant Financial Database',
-        'H3ADAT': 'NIH/H3A/I-HAB Grant Financial Database',
-        'HAFDAT': 'Global Fund TB Sub-Recipients Financial Database.',
-        'HEPDAT': 'Hepatitis B Project Financial Database',
-        'HOMDAT': 'Hominy Project Financial Database',
-        'IEVDAT': 'IEV Grant Financial Database',
-        'IGHDAT': 'IHVN Guest House',
-        'IHVGDA': 'IHVN InterGrant Transactions Database',
-        'IHVPAD': 'IHVN Payroll Database',
-        'IHVSDA': 'Non UMB Grants Financial Database',
-        'IMADAT': 'Impact Malaria Financial Database',
-        'IMPDAT': 'IMPACT Project Financial Database',
-        'IMUDAT': 'IMPACT UMB Project Financial Database.',
-        'INFDAT': 'INFORM Africa Project Financial Database',
-        'IRCDAT': 'IHVN International Research Center of Excellence',
-        'ISEDAT': 'IRCE Secure Financial Database',
-        'ITADAT': 'INSIGHT013 ITAC (The study)',
-        'LONDAT': 'USAID/Nigeria Tuberculosis Local Organizations Network',
-        'LSTDAT': 'HIV-ST-Evaluation Project (LSTM) Financial Database',
-        'MALDAT': 'IHVN/ Ondo State Malaria Impact project Financial Database',
-        'NDBSDA': 'Novateur Developement Business Services',
-        'NORDAT': 'NORA Project Financial Database',
-        'OUTDAT': 'Outcome Study Financial Database',
-        'PAVDAT': 'IHVN PAVIA Grant Financial Database',
-        'PEDDAT': 'Pediatrics Project Financial Database',
-        'PLADAT': 'NIH/UMB/Plasvirec Grant Financial Database',
-        'RECDAT': 'IHVN Recoup Database',
-        'RSLDAT': 'Resolve To Save Lives Grant Finacial Database',
-        'SAFDAT': 'Safe/Thrive Project Financial Database',
-        'SCEDAT': 'Scenario Study Financial Database',
-        'SGHDAT': 'Strengthng Global Health Security Agenda In Nig(Secure- Nig)',
-        'SPEDAT': 'SPEED (Vital Strategies) Project Financial Database',
-        'STADAT': 'UNSW/TKI/Start Study Grant Financial Database',
-        'SYNDAT': 'Syndemic Project Financial Database',
-        'TICDAT': 'TICO Project Financial Database',
-        'TIFDAT': 'IHVN TIFA Grant Financial Database',
-        'TRIDAT': 'EDCTP - TRiAD Study Financial Database',
-        'VERDAT': 'VERDI Mpox Project',
-        'WANDAT': 'IHVN Wanetam EDCTP Grant Financial Database.',
-        'WONDAT': 'HIV & HCV Clinical Validation Study Financial Database',
-    }
+    # Build processed invoice IDs per project to avoid cross-project collisions
+    processed_map: Dict[int, set] = {}
+    for row in ProcessedDeposits.objects.filter(transaction_date__gte="2025-01-01").values('project_id', 'invoiceid'):
+        pid = row['project_id'] or 1
+        inv = (row['invoiceid'] or '').strip()
+        processed_map.setdefault(pid, set()).add(inv)
 
+    friendly_names = dict(Projects.objects.values_list('project_code', 'project_name'))
     # Determine available SQL Server aliases from settings (exclude default)
     sql_aliases = [k for k in settings.DATABASES.keys() if k != 'default']
 
@@ -616,11 +570,19 @@ def homepage(request):
 
     for alias in sql_aliases:
         try:
+            # Resolve project id from Projects model using alias as project_code
+            try:
+                proj_id = Projects.objects.filter(project_code=alias).values_list('id', flat=True).first() or 1
+            except Exception:
+                proj_id = 1
+
+            processed_for_proj = processed_map.get(proj_id, set())
+
             payments_qs = (
                 Appym.objects.using(alias)
                 .filter(idvend__in=vendors)
                 .filter(datermit__gt=20250101)
-                .exclude(idinvc__in=processed)
+                .exclude(idinvc__in=processed_for_proj)
                 .order_by('-cntbtch')
             )
             if not payments_qs.exists():
@@ -645,6 +607,7 @@ def homepage(request):
                 transactions_by_db_list.append({
                     'alias': alias,
                     'display_name': friendly_names.get(alias, alias),
+                    'project_id': proj_id,
                     'transactions': txns,
                 })
         except Exception as e:
@@ -937,9 +900,8 @@ def checkAccNumber(request):
 
 def generate_unique_reference():
     """Generate a unique reference for bulk transactions"""
-    timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
-    unique_id = str(uuid.uuid4().int)[:6]
-    return f"{timestamp}{unique_id}"
+    unique_id = str(uuid.uuid4().int)[:5]
+    return f"{unique_id}"
 
 
 def perform_name_enquiry(token, bank_code, account_number):
@@ -1237,7 +1199,7 @@ def log_processed_deposit(project_id, batch_ref, transaction, status_code, proce
     Returns:
         ProcessedDeposits object or None if error
     """
-    from .models import ProcessedDeposits, Projects
+
 
     try:
         # Determine status based on status code
@@ -1264,7 +1226,6 @@ def log_processed_deposit(project_id, batch_ref, transaction, status_code, proce
             transaction_date=transaction.get('date', ''),
             amount=str(transaction.get('amount', 0)),
             status=status,
-            transaction_type=transaction_type,
             processed_by=processed_by
         )
 
@@ -1272,14 +1233,15 @@ def log_processed_deposit(project_id, batch_ref, transaction, status_code, proce
 
     except Exception as e:
         print(f"Error logging deposit: {str(e)}")
-        import traceback
+
         traceback.print_exc()
         return None
 
 
 def update_transaction_status(invoice_id, status_code, response_message=''):
     """
-    Update the status of an existing transaction
+    Update the status of existing transaction(s) matching the invoice ID.
+    Note: Invoice IDs can collide across projects, so we do not assume global uniqueness.
 
     Args:
         invoice_id: Invoice ID to update
@@ -1287,9 +1249,8 @@ def update_transaction_status(invoice_id, status_code, response_message=''):
         response_message: Optional message from API response
 
     Returns:
-        bool: True if updated successfully, False otherwise
+        bool: True if any record updated successfully, False otherwise
     """
-    from .models import ProcessedDeposits
 
     try:
         # Determine status based on status code
@@ -1304,20 +1265,16 @@ def update_transaction_status(invoice_id, status_code, response_message=''):
         else:
             status = 0  # Pending
 
-        deposit = ProcessedDeposits.objects.get(invoiceid=invoice_id)
-        deposit.status = status
-        deposit.save()
-
-        print(f"Updated transaction {invoice_id} to status {status}")
-        return True
-
-    except ProcessedDeposits.DoesNotExist:
-        print(f"Transaction {invoice_id} not found")
-        return False
+        updated = ProcessedDeposits.objects.filter(invoiceid=invoice_id).update(status=status)
+        if updated:
+            print(f"Updated {updated} transaction(s) with invoice {invoice_id} to status {status}")
+            return True
+        else:
+            print(f"Transaction {invoice_id} not found")
+            return False
     except Exception as e:
         print(f"Error updating transaction status: {str(e)}")
         return False
-
 
 def post_transactions(request):
     """
@@ -1328,7 +1285,7 @@ def post_transactions(request):
         try:
             # Check and get valid token
             secret_key = check_and_refresh_token(request)
-
+            print("Using secret key:", secret_key)
             if not secret_key:
                 return JsonResponse({
                     'success': False,
@@ -1346,6 +1303,7 @@ def post_transactions(request):
             transactions = []
             for entry in transacs:
                 values = entry['values']
+                entry_project_id = entry.get('project_id') or project_id or 1
                 transaction_element = {
                     'date': values[0],
                     'amount': values[1],
@@ -1356,43 +1314,29 @@ def post_transactions(request):
                     'account_no': values[7],
                     'bank_code': values[8],
                     'bank_name': values[9],
-                    'email': values[10] if len(values) > 10 else ''
+                    'email': values[10] if len(values) > 10 else '',
+                    'project_id': int(entry_project_id),
                 }
                 transactions.append(transaction_element)
 
-            print("Parsed transactions:", transactions)
 
             # Get source account details from request or settings
             source_account_details = {
-                'sourceBankCode': getattr(settings.REMITA_SOURCE_BANK_CODE, '925'),
-                'sourceAccount':getattr(settings.REMITA_SOURCE_ACCOUNT_NO, '9256258124'),
-                'sourceAccountName': getattr(settings.REMITA_SOURCE_ACCOUNT_NAME, '9256258124'),
-                'originalBankCode': getattr(settings.REMITA_SOURCE_BANK_CODE, '925'),
-                'originalAccountNumber': getattr(settings.REMITA_SOURCE_ACCOUNT_NO, '9256258124'),
+                'sourceBankCode': getattr(settings ,'REMITA_SOURCE_BANK_CODE', '925'),
+                'sourceAccount':getattr(settings,'REMITA_SOURCE_ACCOUNT_NO', '9256258124'),
+                'sourceAccountName': getattr(settings,'REMITA_SOURCE_ACCOUNT_NAME', '9256258124'),
+                'originalBankCode': getattr(settings,'REMITA_SOURCE_BANK_CODE', '925'),
+                'originalAccountNumber': getattr(settings, 'REMITA_SOURCE_ACCOUNT_NO', '9256258124'),
                 'sourceNarration': request.POST.get('narration', 'Bulk Payment Transaction')
             }
 
             # Optional: Check balance before initiating
-            balance_check = check_account_balance(
-                secret_key,
-                source_account_details['sourceAccount'],
-                source_account_details['sourceBankCode']
-            )
 
-            if balance_check['success']:
-                total_amount = sum(float(t['amount']) for t in transactions)
-                if balance_check['available_balance'] < total_amount:
-                    return JsonResponse({
-                        'success': False,
-                        'message': 'Insufficient balance',
-                        'available_balance': balance_check['available_balance'],
-                        'required_amount': total_amount
-                    }, status=400)
-
+            print(source_account_details)
             # Initiate bulk payment
             result = initiate_bulk_payment(secret_key, source_account_details, transactions)
             batch_ref = result['batch_ref']
-
+            print(result)
             # Log all transactions to database regardless of success/failure
             logged_count = 0
             for transaction in transactions:
@@ -1400,11 +1344,11 @@ def post_transactions(request):
                 status_code = result.get('response', {}).get('status', '81')  # Default to pending
 
                 deposit = log_processed_deposit(
-                    project_id=project_id,
+                    project_id=transaction.get('project_id', project_id),
                     batch_ref=batch_ref,
                     transaction=transaction,
                     status_code=status_code,
-                    processed_by=processed_by,
+                    processed_by=request.user,
                     transaction_type='BULK_TRANSFER'
                 )
 
@@ -1433,7 +1377,7 @@ def post_transactions(request):
 
         except Exception as e:
             print(f"Error processing transactions: {str(e)}")
-            import traceback
+
             traceback.print_exc()
             return JsonResponse({
                 'success': False,
@@ -1478,3 +1422,37 @@ def check_transaction_status(request, batch_ref):
             }, status=500)
 
     return JsonResponse({'message': 'Only GET requests allowed'}, status=400)
+
+
+def live_search_bank_details(request):
+    """Live search endpoint for bank details by account name.
+
+    Query params:
+      - q: search term (required)
+      - vendor_id: optional vendor filter to limit results to the row's vendor
+      - limit: optional max results (default 20)
+    Returns JSON {results: [{account_name, account_no, bank_name, bank_code, vendor_id}]}
+    """
+    if request.method != 'GET':
+        return JsonResponse({'message': 'Only GET requests allowed'}, status=400)
+
+    q = (request.GET.get('q') or '').strip()
+    vendor_id = (request.GET.get('vendor_id') or '').strip()
+    try:
+        limit = int(request.GET.get('limit') or 20)
+    except Exception:
+        limit = 20
+
+    if not q or len(q) < 2:
+        return JsonResponse({'results': []})
+
+    try:
+        qs = BankDetails.objects.all()
+        # Search by account_name icontains
+        qs = qs.filter(account_name__icontains=q)
+        if vendor_id:
+            qs = qs.filter(vendor_id=vendor_id)
+        qs = qs.values('account_name', 'account_no', 'bank_name', 'bank_code', 'vendor_id')[:limit]
+        return JsonResponse({'results': list(qs)})
+    except Exception as e:
+        return JsonResponse({'message': f'Error: {e}'}, status=500)

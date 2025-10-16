@@ -24,3 +24,4 @@ class CustmonUserAdmin(UserAdmin):
 admin.site.register(BankDetails)
 admin.site.register(Projects)
 admin.site.register(Users,CustmonUserAdmin)
+admin.site.register(RemitaAuth)

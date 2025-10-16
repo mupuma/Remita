@@ -63,7 +63,7 @@ class BankDetails(models.Model):
 class ProcessedDeposits(models.Model):
     project = models.ForeignKey(Projects, on_delete=models.CASCADE, related_name='processed_deposits', default=1)
     batch_identifier = models.CharField(max_length=255, blank=False, default='5674883')
-    invoiceid = models.CharField(max_length=255, blank=False, unique=True)
+    invoiceid = models.CharField(max_length=255, blank=False)
     vendorid = models.CharField(max_length=255, blank=False,)
     vendorname = models.CharField(max_length=255, blank=False)
     transaction_date = models.CharField(max_length=255, blank=False, unique=False)
@@ -71,6 +71,22 @@ class ProcessedDeposits(models.Model):
     status = models.IntegerField()
     timestamp = models.DateTimeField(auto_now=True)
     processed_by = models.CharField(max_length=255)
+
+    class Meta:
+        unique_together = (('project', 'invoiceid'),)
+
+
+class RemitaAuth(models.Model):
+    """Stores the latest Remita access token and its expiry time.
+    Using a single-row table; use id=1 for the singleton record.
+    """
+    token = models.TextField(null=True, blank=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"RemitaAuth(exp={self.expires_at})"
 
 
 class Appym(models.Model):
