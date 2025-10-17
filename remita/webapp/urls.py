@@ -12,7 +12,7 @@ urlpatterns = [
     path('history/', views.transaction_history, name='transaction-history'),
     path('download/', views.transaction_history_xls),
     path('account_number/', views.checkAccNumber, name='check-account-number'),
-    path('bank_details/upload/verify_account/zicb/', views.zicb_customer_account_number_check),
+    #path('bank_details/upload/verify_account/zicb/', views.zicb_customer_account_number_check),
     path('bank_details/upload/verify_account/other/', views.other_bank_account_number_check),
     path('bank_details/upload/verify_account/', views.checkVendorDetails),
     path('bank_details/upload/verify_vendor/', views.checkVendor),
@@ -34,7 +34,7 @@ urlpatterns = [
     path('status/<str:batch_ref>/', views.check_transaction_status, name='check-transaction-status'),
     path('post-transactions/', views.post_transactions, name='post-transactions'),
     path('logout', views.UserLogout, name='logout'),
-    path('bank_details/upload/loadBanks/', views.loadBankList),
+    path('bank_details/upload/loadBanks/', views.loadBankList, name='load-bank-list'),
     path('bank_details/delete/<str:acc_no>/', views.delete_vendor, name='delete'),
 
 ]

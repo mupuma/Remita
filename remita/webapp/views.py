@@ -33,7 +33,23 @@ from .models import Projects
 import requests
 import pandas as pd
 
-transaction_headers=["Content-Type: application/json; charset=utf-8"]
+# Remita credentials
+REMITA_API_KEY = "Q1dHREVNTzEyMzR8Q1dHREVNTw=="
+REMITA_MERCHANT_ID = "82547916"
+
+# Function to get a valid token
+def check_and_refresh_token():
+    # Replace with your actual logic to get/refresh token
+    return "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6Im10bC1kZm5zQ3JSNE5mNy12MGJRakZrS0FZbzhKVkJJYTluZjVtd1c5WV0"  
+
+# Transaction headers
+transaction_headers = {
+    "Content-Type": "application/json; charset=utf-8",
+    "Accept": "application/json",
+    "Authorization": f"Bearer {check_and_refresh_token()}",
+    "Api-Key": REMITA_API_KEY,
+    "Merchant-Id": REMITA_MERCHANT_ID
+}
 
 """
 Functions to Handle User Authentication and Authorization
@@ -245,23 +261,23 @@ Functions to Handle Vendor Bank Details Upload and Validation
 """
 
 
-def zicb_customer_account_number_check(request):
-    account_no = request.GET['account_no']
-    data = {
-        "service": "ZB0627",
-        "request": {
-            "accountNos": f"{account_no}"
-        }
-    }
-    response = requests.post(url=URL, headers={"Content-Type": "application/json; charset=utf-8", "authkey": API_KEY},
-                             json=data, verify=False)
-    response = response.json()
-    account_list = response['response']['accountList']
-    print(account_list)
-    if account_list == []:
-        return JsonResponse({'response': False}, safe=False)
-    else:
-        return JsonResponse({'response': account_list}, safe=False)
+# def zicb_customer_account_number_check(request):
+#     account_no = request.GET['account_no']
+#     data = {
+#         "service": "ZB0627",
+#         "request": {
+#             "accountNos": f"{account_no}"
+#         }
+#     }
+#     response = requests.post(url=URL, headers={"Content-Type": "application/json; charset=utf-8", "authkey": API_KEY},
+#                              json=data, verify=False)
+#     response = response.json()
+#     account_list = response['response']['accountList']
+#     print(account_list)
+#     if account_list == []:
+#         return JsonResponse({'response': False}, safe=False)
+#     else:
+#         return JsonResponse({'response': account_list}, safe=False)
 
 
 def other_bank_account_number_check(request):
@@ -278,8 +294,8 @@ def other_bank_account_number_check(request):
             }
         }
     }
-    response = requests.post(url=URL,
-                             headers={"Content-Type": "application/json; charset=utf-8", "authkey": API_KEY},
+    response = requests.post(url="https://api-demo.systemspecsng.com/services/connect-gateway/api/v1/integration/banks",
+                             headers={"Content-Type": "application/json; charset=utf-8", "Accept": "application/json"},
                              json=data, verify=False)
     response = response.json()
     print(response)
@@ -310,13 +326,27 @@ def delete_vendor(requst, acc_no):
 
 
 def loadBankList(request):
-    resp = requests.post(url=URL, headers=transaction_headers, json={"service": "BNK9901", "request": {}},
-                         verify=False)
-    resp = resp.json()
-    if resp['operation_status'] == 'SUCCESS':
-        resp = resp['response']['bankList']
+    transaction_headers = {
+        "Content-Type": "application/json; charset=utf-8",
+        "Accept": "application/json",
+    }
 
-        return JsonResponse(resp, safe=False)
+    resp = requests.post(
+        url="https://api-demo.systemspecsng.com/services/connect-gateway/api/v1/interbank/transaction/bank/list",
+        headers=transaction_headers,
+        json={"service": "BNK9901", "request": {}},
+        verify=False
+    )
+
+    # Print or log response
+    print("Raw bank list response:", resp.text)
+
+    try:
+        data = resp.json()
+    except Exception:
+        return JsonResponse({"error": "Invalid JSON from API"}, status=500)
+
+    return JsonResponse(data, safe=False)
 
 
 @login_required(login_url="/")
@@ -330,7 +360,7 @@ def bankUploadViaForm(request):
                     return render(request, 'account-details.html', {'form': form})
                 vendor = form.save(commit=False)
                 sort_code = form.cleaned_data.get('sort_code')
-                resp = requests.post(url=URL, headers=transaction_headers, json={"service": "BNK9901", "request": {}},
+                resp = requests.post(url="https://api-demo.systemspecsng.com/services/connect-gateway/api/v1/interbank/transaction/bank/list", headers=transaction_headers, json={"service": "BNK9901", "request": {}},
                                      verify=False)
                 resp = resp.json()
                 if resp['operation_status'] == 'SUCCESS':
@@ -363,7 +393,7 @@ def bankUploadViaFormAddAnother(request):
                     return render(request, 'account-details.html', {'form': form})
                 vendor = form.save(commit=False)
                 sort_code = form.cleaned_data.get('sort_code')
-                resp = requests.post(url=URL, headers=transaction_headers, json={"service": "BNK9901", "request": {}},
+                resp = requests.post(url="https://api-demo.systemspecsng.com/services/connect-gateway/api/v1/integration/account/lookup", headers=transaction_headers, json={"service": "BNK9901", "request": {}},
                                      verify=False)
                 resp = resp.json()
                 if resp['operation_status'] == 'SUCCESS':
@@ -916,7 +946,7 @@ def perform_name_enquiry(token, bank_code, account_number):
     Returns:
         dict: Response containing account name if successful, error otherwise
     """
-    url = "https://api-demo.systemspecsng.com/services/connect-gateway/api/v1/integration/account/lookup"
+    url = "https://api-demo.systemspecsng.com/services/connect-gateway//api/v1/interbank/name/enquiry"
 
     headers = {
         'Authorization': f'Bearer {token}',
