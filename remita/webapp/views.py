@@ -33,22 +33,12 @@ from .models import Projects
 import requests
 import pandas as pd
 
-# Remita credentials
-REMITA_API_KEY = "Q1dHREVNTzEyMzR8Q1dHREVNTw=="
-REMITA_MERCHANT_ID = "82547916"
-
-# Function to get a valid token
-def check_and_refresh_token():
-    # Replace with your actual logic to get/refresh token
-    return "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6Im10bC1kZm5zQ3JSNE5mNy12MGJRakZrS0FZbzhKVkJJYTluZjVtd1c5WV0"  
-
-# Transaction headers
 transaction_headers = {
     "Content-Type": "application/json; charset=utf-8",
     "Accept": "application/json",
-    "Authorization": f"Bearer {check_and_refresh_token()}",
-    "Api-Key": REMITA_API_KEY,
-    "Merchant-Id": REMITA_MERCHANT_ID
+    #"Authorization": f"Bearer {check_and_refresh_token()}",
+    # "Api-Key": REMITA_API_KEY,
+    # "Merchant-Id": REMITA_MERCHANT_ID
 }
 
 """
@@ -318,139 +308,201 @@ def checkVendor(request):
     return JsonResponse({'response': exists})
 
 
-def delete_vendor(requst, acc_no):
+def delete_vendor(request, acc_no):
     vendor = BankDetails.objects.filter(account_no=acc_no).all()
     if vendor:
         vendor.delete()
         return redirect('webapp:bank-details')
 
 
+import requests
+from django.http import JsonResponse
+
 def loadBankList(request):
+    """Fetch the list of banks from Remita API (GET request)."""
     transaction_headers = {
         "Content-Type": "application/json; charset=utf-8",
         "Accept": "application/json",
+        "Authorization": f"Bearer {check_and_refresh_token()}",
     }
 
-    resp = requests.post(
-        url="https://api-demo.systemspecsng.com/services/connect-gateway/api/v1/interbank/transaction/bank/list",
-        headers=transaction_headers,
-        json={"service": "BNK9901", "request": {}},
-        verify=False
-    )
-
-    # Print or log response
-    print("Raw bank list response:", resp.text)
-
     try:
+        # Make a GET request to the Remita API
+        resp = requests.get(
+            url="https://api-demo.systemspecsng.com/services/connect-gateway/api/v1/integration/banks",
+            headers=transaction_headers,
+            verify=False
+        )
+
+        print("Raw bank list response:", resp.text)
+
         data = resp.json()
-    except Exception:
+
+        # ✅ Handle API error properly
+        if data.get("status") != "00":
+            return JsonResponse(
+                {
+                    "success": False,
+                    "status": data.get("status"),
+                    "message": data.get("message", "Failed to fetch bank list"),
+                },
+                status=400
+            )
+
+        # ✅ Extract and return only the bank list
+        bank_list = data.get("data", {}).get("banks", [])
+        return JsonResponse(bank_list, safe=False)
+
+    except requests.exceptions.RequestException as e:
+        print(f"Network error while fetching bank list: {e}")
+        return JsonResponse({"error": "Network error while fetching bank list"}, status=500)
+
+    except ValueError:
         return JsonResponse({"error": "Invalid JSON from API"}, status=500)
-
-    return JsonResponse(data, safe=False)
-
 
 @login_required(login_url="/")
 @user_is_support_staff
 def bankUploadViaForm(request):
-    try:
-        form = BankDetailsForm(request.POST or None)
-        if request.method == 'POST':
-            if form.is_valid():
-                if request.htmx:
-                    return render(request, 'account-details.html', {'form': form})
-                vendor = form.save(commit=False)
-                sort_code = form.cleaned_data.get('sort_code')
-                resp = requests.post(url="https://api-demo.systemspecsng.com/services/connect-gateway/api/v1/interbank/transaction/bank/list", headers=transaction_headers, json={"service": "BNK9901", "request": {}},
-                                     verify=False)
-                resp = resp.json()
-                if resp['operation_status'] == 'SUCCESS':
-                    resp = resp['response']['bankList']
-                    for resp in resp:
-                        if sort_code == resp['sortCode']:
-                            bicCode = resp['bicCode']
-                            vendor.bicCode = bicCode
-                            vendor.save()
-                            break
-                    else:
-                        bicCode = 'ZICB'
-                        vendor.bicCode = bicCode
-                        vendor.save()
-                    return redirect('webapp:bank-details')
-                else:
-                    return HttpResponse(f'Error saving bank details, Try again later', status=500)
+    """Uploads bank details and auto-fills bank name and details from Remita."""
+    form = BankDetailsForm(request.POST or None)
 
-        return render(request, 'account-details.html', {'form': form})
-    except Exception as e:
-        print(e)
+    if request.method == 'POST' and form.is_valid():
+        vendor = form.save(commit=False)
+        bank_code = form.cleaned_data.get('bank_code')
+
+        transaction_headers = {
+            "Content-Type": "application/json; charset=utf-8",
+            "Accept": "application/json",
+            "Authorization": f"Bearer {check_and_refresh_token()}",
+        }
+
+        try:
+            resp = requests.get(
+                url="https://api-demo.systemspecsng.com/services/connect-gateway/api/v1/integration/banks",
+                headers=transaction_headers,
+                verify=False
+            )
+
+            data = resp.json()
+            bank_list = data.get("data", {}).get("banks", [])
+
+            matched_bank = next((bank for bank in bank_list if bank.get("bankCode") == bank_code), None)
+
+            if matched_bank:
+                vendor.bank_name = matched_bank.get("bankName")
+                vendor.country_code = matched_bank.get("countryCode")
+                vendor.currencies = matched_bank.get("currencies")
+            else:
+                vendor.bank_name = None
+                vendor.country_code = None
+                vendor.currencies = None
+
+            vendor.save()
+            return redirect('webapp:bank-details')
+
+        except Exception as e:
+            print(f"Error fetching bank list: {e}")
+            return HttpResponse("An error occurred while saving bank details.", status=500)
+
+    return render(request, 'account-details.html', {'form': form})
 
 
+@login_required(login_url="/")
+@user_is_support_staff
 def bankUploadViaFormAddAnother(request):
-    try:
-        form = BankDetailsForm(request.POST or None)
-        if request.method == 'POST':
-            if form.is_valid():
-                if request.htmx:
-                    return render(request, 'account-details.html', {'form': form})
-                vendor = form.save(commit=False)
-                sort_code = form.cleaned_data.get('sort_code')
-                resp = requests.post(url="https://api-demo.systemspecsng.com/services/connect-gateway/api/v1/integration/account/lookup", headers=transaction_headers, json={"service": "BNK9901", "request": {}},
-                                     verify=False)
-                resp = resp.json()
-                if resp['operation_status'] == 'SUCCESS':
-                    resp = resp['response']['bankList']
-                    for resp in resp:
-                        if sort_code == resp['sortCode']:
-                            bicCode = resp['bicCode']
-                            vendor.bicCode = bicCode
-                            vendor.save()
-                            break
-                    else:
-                        bicCode = 'ZICB'
-                        vendor.bicCode = bicCode
-                        vendor.save()
-                    return redirect('webapp:account-details')
-                else:
-                    return HttpResponse(f'Error saving bank details, Try again later', status=500)
+    """Handles adding another bank via form."""
+    form = BankDetailsForm(request.POST or None)
 
-        return render(request, 'account-details.html', {'form': form})
-    except Exception as e:
-        print(e)
+    if request.method == 'POST' and form.is_valid():
+        vendor = form.save(commit=False)
+        bank_code = form.cleaned_data.get('bank_code')
+
+        transaction_headers = {
+            "Content-Type": "application/json; charset=utf-8",
+            "Accept": "application/json",
+            "Authorization": f"Bearer {check_and_refresh_token()}",
+        }
+
+        try:
+            resp = requests.get(
+                url="https://api-demo.systemspecsng.com/services/connect-gateway/api/v1/integration/banks",
+                headers=transaction_headers,
+                verify=False
+            )
+
+            data = resp.json()
+            bank_list = data.get("data", {}).get("banks", [])
+
+            matched_bank = next((bank for bank in bank_list if bank.get("bankCode") == bank_code), None)
+
+            if matched_bank:
+                vendor.bank_name = matched_bank.get("bankName")
+                vendor.country_code = matched_bank.get("countryCode")
+                vendor.currencies = matched_bank.get("currencies")
+            else:
+                vendor.bank_name = None
+                vendor.country_code = None
+                vendor.currencies = None
+
+            vendor.save()
+            return redirect('webapp:account-details')
+
+        except Exception as e:
+            print(f"Error fetching bank list: {e}")
+            return HttpResponse("An error occurred while saving bank details.", status=500)
+
+    return render(request, 'account-details.html', {'form': form})
 
 
+@login_required(login_url="/")
+@user_is_support_staff
 def editBankUploadViaForm(request, acc_id):
+    """Edit bank details and refetch updated bank info from Remita."""
     vendor = BankDetails.objects.filter(account_no=acc_id).first()
-    form = BankDetailsForm(request.POST, instance=vendor)
-    print(vendor)
-    if request.method == 'POST':
-        if form.is_valid():
-            if request.htmx:
-                return render(request, 'account-details.html', {'form': form})
-            vendor = form.save(commit=False)
-            sort_code = form.cleaned_data.get('sort_code')
-            resp = requests.post(url=URL, headers=transaction_headers, json={"service": "BNK9901", "request": {}},
-                                 verify=False)
-            resp = resp.json()
-            if resp['operation_status'] == 'SUCCESS':
-                resp = resp['response']['bankList']
-                for resp in resp:
-                    if sort_code == resp['sortCode']:
-                        bicCode = resp['bicCode']
-                        vendor.bicCode = bicCode
-                        vendor.save()
-                        break
-                else:
-                    bicCode = 'ZICB'
-                    vendor.bicCode = bicCode
-                    vendor.save()
-                return redirect('webapp:bank-details')
+    if not vendor:
+        return HttpResponse("Bank record not found.", status=404)
 
-        else:
-            render(request, 'edit-vendor-bank.html',
-                   {'form': BankDetailsForm(instance=vendor), 'acc_id': vendor.account_no})
+    form = BankDetailsForm(request.POST or None, instance=vendor)
 
-    return render(request, 'edit-vendor-bank.html', {'form': BankDetailsForm(instance=vendor),
-                                                     'acc_id': vendor.account_no})
+    if request.method == 'POST' and form.is_valid():
+        vendor = form.save(commit=False)
+        bank_code = form.cleaned_data.get('bank_code')
 
+        transaction_headers = {
+            "Content-Type": "application/json; charset=utf-8",
+            "Accept": "application/json",
+            "Authorization": f"Bearer {check_and_refresh_token()}",
+        }
+
+        try:
+            resp = requests.get(
+                url="https://api-demo.systemspecsng.com/services/connect-gateway/api/v1/integration/banks",
+                headers=transaction_headers,
+                verify=False
+            )
+
+            data = resp.json()
+            bank_list = data.get("data", {}).get("banks", [])
+
+            matched_bank = next((bank for bank in bank_list if bank.get("bankCode") == bank_code), None)
+
+            if matched_bank:
+                vendor.bank_name = matched_bank.get("bankName")
+                vendor.country_code = matched_bank.get("countryCode")
+                vendor.currencies = matched_bank.get("currencies")
+            else:
+                vendor.bank_name = None
+                vendor.country_code = None
+                vendor.currencies = None
+
+            vendor.save()
+            return redirect('webapp:bank-details')
+
+        except Exception as e:
+            print(f"Error fetching bank list: {e}")
+            return HttpResponse("An error occurred while updating bank details.", status=500)
+
+    return render(request, 'edit-vendor-bank.html', {'form': form, 'acc_id': vendor.account_no})
 
 @login_required(login_url='/')
 @user_is_support_staff
@@ -490,7 +542,7 @@ def bankUploadCSV(request):
         # try:
         file = request.FILES['csvupload']
         df = pd.read_excel(file, dtype={'account_no': str, 'vendor_id': str, 'account_name': str,
-                                        'vendor_mobile_number': str, 'vendor_email': str, 'sort_code': str})
+                                        'vendor_mobile_number': str, 'vendor_email': str, 'bank_code': str})
         df.fillna("", inplace=True)
         for row in df.itertuples(index=False):
             account_no = row.account_no
@@ -500,7 +552,7 @@ def bankUploadCSV(request):
             vendor_email = row.vendor_email
             bank_name = ''
             branch = ''
-            sort_code = row.sort_code
+            bank_code = row.bank_code
             bicCode = ''
             resp = requests.post(url=URL, headers=transaction_headers, json={"service": "BNK9901", "request": {}},
                                  verify=False)
@@ -509,7 +561,7 @@ def bankUploadCSV(request):
                 resp = resp['response']['bankList']
                 found = False
                 for resp_item in resp:
-                    if str(sort_code) == resp_item['sortCode']:
+                    if str(bank_code) == resp_item['sortCode']:
                         bank_name = resp_item['bankName']
                         branch = resp_item['branchDesc']
                         bicCode = resp_item['bicCode']
@@ -538,7 +590,7 @@ def bankUploadCSV(request):
                     vendor_mobile_number=vendor_mobile_number,
                     vendor_email=vendor_email,
                     bank_name=bank_name,
-                    sort_code=sort_code,
+                    bank_code=bank_code,
                     branch=branch,
                     bicCode=bicCode
                 )
@@ -558,7 +610,7 @@ def bankUploadCSVTemplate(request):
     try:
         b = io.BytesIO()
         selected_fields = ['account_no', 'vendor_id', 'account_name', 'vendor_mobile_number', 'vendor_email',
-                           'sort_code']
+                           'bank_code']
         df = pd.DataFrame(columns=selected_fields)
         writer = pd.ExcelWriter(b, engine='openpyxl')
         df.to_excel(writer, sheet_name='vendor bank details', index=False)
@@ -802,7 +854,7 @@ def get_search_results(request):
 
         elif field_option in field_mapping_vendor and search_params:
             vendor_info = BankDetails.objects.filter(**{field_mapping_vendor[field_option]: search_params}).values(
-                'vendor_id', 'sort_code', 'account_no', 'account_name').all()
+                'vendor_id', 'bank_code', 'account_no', 'account_name').all()
             vendor_ids = [vendor['vendor_id'] for vendor in vendor_info]
             trans_infor_raw = []
             transaction_info = Appym.objects.using('ABSDAT').filter(idvend__in=vendor_ids)
@@ -846,7 +898,7 @@ def get_history_search_results(request):
     }
     if field_option in field_mapping_vendor and search_params:
         data = BankDetails.objects.filter(**{field_mapping_vendor[field_option]: search_params}).values(
-        'vendor_id', 'sort_code', 'account_no', 'account_name')
+        'vendor_id', 'bank_code', 'account_no', 'account_name')
         paginator = Paginator(data, 20)
         page_number = request.GET.get('page')
         page_obj = paginator.get_page(page_number)

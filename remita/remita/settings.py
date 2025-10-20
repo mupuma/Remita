@@ -94,7 +94,7 @@ DATABASES = {
     },
     'ACCDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -105,7 +105,7 @@ DATABASES = {
     },
     'ACTDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -116,7 +116,7 @@ DATABASES = {
     },
     'ADADAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -127,7 +127,7 @@ DATABASES = {
     },
     'ANRDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -138,7 +138,7 @@ DATABASES = {
     },
     'APTDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -149,7 +149,7 @@ DATABASES = {
     },
     'ASPDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -160,7 +160,7 @@ DATABASES = {
     },
     'BEADAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -171,7 +171,7 @@ DATABASES = {
     },
     'BEGDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -182,7 +182,7 @@ DATABASES = {
     },
     'BRIDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -193,7 +193,7 @@ DATABASES = {
     },
     'BUFDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -204,7 +204,7 @@ DATABASES = {
     },
     'BUTDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -215,7 +215,7 @@ DATABASES = {
     },
     'CAMDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -226,7 +226,7 @@ DATABASES = {
     },
     'CASDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -237,7 +237,7 @@ DATABASES = {
     },
     'CIPDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -248,7 +248,7 @@ DATABASES = {
     },
     'CLEDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -259,7 +259,7 @@ DATABASES = {
     },
     'D2EDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -270,7 +270,7 @@ DATABASES = {
     },
     'EFADAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -281,7 +281,7 @@ DATABASES = {
     },
     'ENHDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -292,7 +292,7 @@ DATABASES = {
     },
     'EQUDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -303,7 +303,7 @@ DATABASES = {
     },
     'EXCDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -314,7 +314,7 @@ DATABASES = {
     },
     'EXPDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -325,7 +325,7 @@ DATABASES = {
     },
     'FELDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -336,7 +336,7 @@ DATABASES = {
     },
     'GC7DAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -347,7 +347,7 @@ DATABASES = {
     },
     'GDRSDA': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -358,7 +358,7 @@ DATABASES = {
     },
     'GESDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -369,7 +369,7 @@ DATABASES = {
     },
     'GFSDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -380,7 +380,7 @@ DATABASES = {
     },
     'GFTBSR': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -391,7 +391,7 @@ DATABASES = {
     },
     'GFTDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -402,7 +402,7 @@ DATABASES = {
     },
     'H3ADAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -413,7 +413,7 @@ DATABASES = {
     },
     'HAFDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -424,7 +424,7 @@ DATABASES = {
     },
     'HEPDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -435,7 +435,7 @@ DATABASES = {
     },
     'HOMDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -446,7 +446,7 @@ DATABASES = {
     },
     'IEVDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -457,7 +457,7 @@ DATABASES = {
     },
     'IGHDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -468,7 +468,7 @@ DATABASES = {
     },
     'IHVGDA': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -479,7 +479,7 @@ DATABASES = {
     },
     'IHVPAD': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -490,7 +490,7 @@ DATABASES = {
     },
     'IHVSDA': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -501,7 +501,7 @@ DATABASES = {
     },
     'IMADAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -512,7 +512,7 @@ DATABASES = {
     },
     'IMPDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -523,7 +523,7 @@ DATABASES = {
     },
     'IMUDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -532,9 +532,9 @@ DATABASES = {
             'driver': 'ODBC Driver 17 for SQL Server',
         },
     },
-    'INFDAT': {
+    'IHVHRMS': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -545,7 +545,7 @@ DATABASES = {
     },
     'IRCDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -556,7 +556,7 @@ DATABASES = {
     },
     'ISEDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -567,7 +567,7 @@ DATABASES = {
     },
     'ITADAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -578,7 +578,7 @@ DATABASES = {
     },
     'LONDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -589,7 +589,7 @@ DATABASES = {
     },
     'LSTDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -600,7 +600,7 @@ DATABASES = {
     },
     'MALDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -611,7 +611,7 @@ DATABASES = {
     },
     'NDBSDA': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -622,7 +622,7 @@ DATABASES = {
     },
     'NORDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -633,7 +633,7 @@ DATABASES = {
     },
     'OUTDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -644,7 +644,7 @@ DATABASES = {
     },
     'PAVDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -655,7 +655,7 @@ DATABASES = {
     },
     'PEDDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -666,7 +666,7 @@ DATABASES = {
     },
     'PLADAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -677,7 +677,7 @@ DATABASES = {
     },
     'RECDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -688,7 +688,7 @@ DATABASES = {
     },
     'RSLDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -699,7 +699,7 @@ DATABASES = {
     },
     'SAFDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -710,7 +710,7 @@ DATABASES = {
     },
     'SCEDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -721,7 +721,7 @@ DATABASES = {
     },
     'SGHDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -732,7 +732,7 @@ DATABASES = {
     },
     'SPEDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -743,7 +743,7 @@ DATABASES = {
     },
     'STADAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -754,7 +754,7 @@ DATABASES = {
     },
     'SYNDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -765,7 +765,7 @@ DATABASES = {
     },
     'TICDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -776,7 +776,7 @@ DATABASES = {
     },
     'TIFDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -787,7 +787,7 @@ DATABASES = {
     },
     'TRIDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -798,7 +798,7 @@ DATABASES = {
     },
     'VERDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -809,7 +809,7 @@ DATABASES = {
     },
     'WANDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
@@ -820,7 +820,7 @@ DATABASES = {
     },
     'WONDAT': {
         'ENGINE': 'mssql',
-        'NAME': 'INFDAT',
+        'NAME': 'IHVHRMS',
         'USER': 'sa',
         'PASSWORD': 'Admin123',
         'HOST': 'localhost',
