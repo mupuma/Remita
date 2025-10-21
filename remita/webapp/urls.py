@@ -9,6 +9,9 @@ app_name = 'webapp'
 
 urlpatterns = [
     path('', views.UserLogin, name='login'),
+    path('register/', views.register, name='register'),
+    path('register/approve/<str:token>/', views.approve_registration, name='approve-registration'),
+    path('register/reject/<str:token>/', views.reject_registration, name='reject-registration'),
     path('history/', views.transaction_history, name='transaction-history'),
     path('download/', views.transaction_history_xls),
     path('account_number/', views.checkAccNumber, name='check-account-number'),
@@ -18,7 +21,7 @@ urlpatterns = [
     path('bank_details/upload/verify_vendor/', views.checkVendor),
     path('forgot_password', views.forgotPassword, name='forgot-password'),
     path('role/', views.checkUserRole),
-    path('remove/<str:id>', views.removetransaction, name='remove-transaction'),
+    path('remove/<str:invoice_id>/<int:project_id>/', views.removetransaction, name='remove-transaction'),
     path('account_details/', views.vendor_account_details),
     path('dashboard', views.homepage, name='homepage'),
     path('bank_details/edit/<str:acc_id>/', views.editBankUploadViaForm, name='edit-bank-details'),
@@ -36,5 +39,6 @@ urlpatterns = [
     path('logout', views.UserLogout, name='logout'),
     path('bank_details/upload/loadBanks/', views.loadBankList),
     path('bank_details/delete/<str:acc_no>/', views.delete_vendor, name='delete'),
+    path('transaction_history/delete/<str:invoice_id>/<int:project_id>/', views.delete_pending_transactions, name='delete-pending'),
 
 ]

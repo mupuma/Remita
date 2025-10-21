@@ -151,7 +151,7 @@
                 <th scope="col">Beneficiary ID</th>
                 <th scope="col">Beneficiary Acc</th>
 
-                <th>Actions</th>
+                <th class="text-right">Actions</th>
 
             </tr>
 
@@ -179,7 +179,7 @@
                                 <input type="text" name="account_name" class="form-control form-control-sm border-0 account-live-input" style="width: 180px" placeholder="Search account..." list="acct-list-{{ transaction.IDINVC }}" data-vendor="{{ transaction.IDVEND }}">
                                 <datalist id="acct-list-{{ transaction.IDINVC }}" class="account-datalist"></datalist>
                             </td>
-                                <td><button type="button" data-bs-toggle="modal" data-bs-target="#delete-transaction-modal-{{transaction.IDINVC}}" class="btn btn-danger btn-sm "><i class="bi bi-trash"></i></button></td>
+                                <td class="text-right"><div class="btn-group btn-group-sm" role="group" aria-label="Actions"><button type="button" data-bs-toggle="modal" data-bs-target="#delete-transaction-modal-{{transaction.IDINVC}}" class="btn btn-danger"><i class="bi bi-trash"></i></button></div></td>
                                 <div id="delete-transaction-modal-{{transaction.IDINVC}}" class="modal fade" aria-hidden="true">
                                     <div class="modal-dialog modal-dialog-centered modal" role="document">
                                     <div class="modal-content p-2">
@@ -197,7 +197,7 @@
                                             <button type="button" class="btn btn-secondary"  onclick="$('#delete-transaction-modal-{{transaction.IDINVC}}').modal('hide')"
                                              aria-label="Close">Close
                                             </button>
-                                            <a href="{% url 'webapp:remove-transaction' transaction.IDINVC %}" class="btn btn-danger ">Delete</a>
+                                            <a href="{% url 'webapp:remove-transaction' transaction.IDINVC group.project_id %}" class="btn btn-danger ">Delete</a>
                                         </div>
                                     </div>
                                     </div>

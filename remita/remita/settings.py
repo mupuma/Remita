@@ -21,10 +21,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-chars = 'abcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*(-_=+)'
-SECRET_KEY = ''.join([os.urandom(1).hex() for i in range(50)])
 
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-0123456789!@#$%^&*(-_=+)abcdefghijkl-production0123456789!@#$%^&*(-_=+)mnopqrstuvwxyz')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
@@ -80,6 +78,13 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'remita.wsgi.application'
 
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'  # Example using Gmail
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'mupumamgtsdev@gmail.com'
+EMAIL_HOST_PASSWORD = 'nnbhieknirlbtvcx'  # Use an app password if 2FA is enabled
+DEFAULT_FROM_EMAIL = 'mupumamgtsdev@gmail.com'
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
@@ -850,9 +855,9 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 REMITA_SOURCE_BANK_CODE ='058'
-REMITA_SOURCE_ACCOUNT_NO='8909090989'
+REMITA_SOURCE_ACCOUNT_NO='0581426964'
 REMITA_SOURCE_BANK_NAME ='ZENITH BANK PLC'
-REMITA_SOURCE_ACCOUNT_NAME='IHVN LTD'
+REMITA_SOURCE_ACCOUNT_NAME='ABC'
 # Internationalization
 # https://docs.djangoproject.com/en/4.2/topics/i18n/
 
@@ -871,14 +876,6 @@ STATICFILES_DIRS = [
     os.path.join(BASE_DIR, "static"),
 ]
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-#SESSION_COOKIE_AGE = 1200  # 5 minutes
-#SECURE_SSL_REDIRECT = True
-
-#SESSION_COOKIE_SECURE = True
-
-#CSRF_COOKIE_SECURE = True
-
-#SECURE_BROWSER_XSS_FILTER = True
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field

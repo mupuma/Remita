@@ -469,18 +469,64 @@ function firstPageLink(firstLink) {
     });
 }
 
+// Generate a batch reference (JS-side) when the modal is about to show
+function generateBatchRef() {
+    const ts = new Date().toISOString().replace(/[-T:.Z]/g, '').slice(0, 14); // yyyymmddhhmmss
+    const rand = Math.random().toString(36).slice(2, 8).toUpperCase();
+    return `BR-${ts}-${rand}`;
+}
+
+// Hook into Bootstrap modal show/hide to set/reset values
+$(document).ready(function () {
+    const $modal = $('#post-transaction-modal');
+    if ($modal.length) {
+        $modal.on('show.bs.modal', function () {
+            // Auto-generate and set batch reference
+            const ref = generateBatchRef();
+            $('#batch-ref-input').val(ref);
+            $('#batch-desc-input').val('');
+            // Refresh the table content in the modal
+            createModalTableBody('modal-table-body');
+        });
+        $modal.on('hidden.bs.modal', function () {
+            // Reset values when modal is closed
+            $('#batch-ref-input').val('');
+            $('#batch-desc-input').val('');
+        });
+    }
+});
+
 if (processBtn){
     processBtn.addEventListener('click', (e) => {
-
         e.preventDefault();
+        // Table body will also be created on show event, but we keep this for safety
         createModalTableBody('modal-table-body');
-    
     });
 }
 if (modalSubmitBtn){
     modalSubmitBtn.addEventListener('click', (e) => {
         loader.classList.remove('d-none')
         e.preventDefault()
+        // Always generate a fresh batch reference at submission time to avoid reuse on retries
+        const freshBatchRef = generateBatchRef();
+        if (document.getElementById('batch-ref-input')) {
+            document.getElementById('batch-ref-input').value = freshBatchRef;
+        }
+        const batchRef = freshBatchRef;
+        const batchDesc = document.getElementById('batch-desc-input') ? document.getElementById('batch-desc-input').value : '';
+
+        // Build unique transaction references per item for this submission only
+        const txRefsMap = {};
+        const ts = new Date().toISOString().replace(/[-T:.Z]/g, '').slice(0, 14);
+        const baseRand = Math.random().toString(36).slice(2, 8).toUpperCase();
+        combinedValues.forEach((item, idx) => {
+            try {
+                const invoiceId = item && item.values ? item.values[2] : `IDX${idx}`;
+                // TR-<timestamp>-<rand>-<seq>
+                txRefsMap[invoiceId] = `TR-${ts}-${baseRand}-${(idx+1).toString().padStart(3,'0')}`;
+            } catch (_) {}
+        });
+
         // Send selected invoice numbers & transaction type to server using ajax
         $.ajax({
             type: 'POST',
@@ -490,6 +536,9 @@ if (modalSubmitBtn){
                 'transactions': JSON.stringify(combinedValues),
                 'invoice_ids[]': JSON.stringify(selectedVendorsInvoiceNumber),
                 'transaction_type': JSON.stringify(selectedTransactionType),
+                'batch_ref': batchRef,
+                'narration': batchDesc,
+                'transaction_refs': JSON.stringify(txRefsMap)
             },
             dataType: 'json',
         })

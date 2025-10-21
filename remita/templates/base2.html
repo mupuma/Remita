@@ -25,39 +25,33 @@
     {% block extra-styles %}{% endblock %}
 </head>
 <body>
-<div class="shadow rounded">
-    <nav class="navbar navbar-secondary " style="background-color: #183660;">
-        <div class="container pl-0">
-            <a href="" class="navbar-brand text-white ">Payment Integration Portal</a>
-
-            <div>
-                <ul class="navbar-nav mr-auto flex-row ">
+<div class="shadow-sm">
+    <nav class="navbar navbar-expand-lg sticky-top app-navbar">
+        <div class="container">
+            <a href="{% url 'webapp:homepage' %}" class="navbar-brand text-white fw-semibold">Payment Integration Portal</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav" aria-controls="mainNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="mainNav">
+                <ul class="navbar-nav ms-auto align-items-lg-center flex-row gap-2 gap-lg-0">
                     {% if request.user.role == '001' %}
-                        <li class="nav-item  p-2"><a href="{% url 'webapp:upload-bank-details' %}"
-                                                     class="text-white nav-link navbar-link" >Add Vendor
+                        <li class="nav-item px-2"><a href="{% url 'webapp:upload-bank-details' %}"
+                                                     class="text-white nav-link navbar-link">Add Vendor
                             Bank Details</a></li>
-                        <li class="nav-item p-2"><a href="{% url 'webapp:bank-details' %}" class="text-white nav-link navbar-link"
-                        >Vendor Bank Details</a></li>
+                        <li class="nav-item px-2"><a href="{% url 'webapp:bank-details' %}" class="text-white nav-link navbar-link">Vendor Bank Details</a></li>
                     {% elif request.user.role == '002' %}
-                        <li class="nav-item  p-2"><a href="{% url 'webapp:homepage' %}" class="text-white nav-link navbar-link"
-                         >Transactions</a></li>
-                        <li class="nav-item p-2"><a href="{% url 'webapp:transaction-history' %}"
-                                                    class="text-white nav-link navbar-link">Transaction
-                            History</a></li>
+                        <li class="nav-item px-2"><a href="{% url 'webapp:homepage' %}" class="text-white nav-link navbar-link">Transactions</a></li>
+                        <li class="nav-item px-2"><a href="{% url 'webapp:transaction-history' %}"
+                                                    class="text-white nav-link navbar-link">Transaction History</a></li>
                     {% endif %}
-                    <li class="nav-item dropdown p-2 ">
+                    <li class="nav-item dropdown px-2">
                         <a class="nav-link navbar-link dropdown-toggle text-white" href="#"
                            role="button" data-bs-toggle="popover"
                            data-bs-placement="bottom" data-bs-html="true"
-                           data-bs-content="<a href='{% url 'webapp:logout' %}' style='text-decoration: none;'>Sign Out</a>
-                                            "
-                        >
+                           data-bs-content="<a href='{% url 'webapp:logout' %}' style='text-decoration: none;'>Sign Out</a>">
                             {{ request.user.username }}</a>
-
                     </li>
-
                 </ul>
-
             </div>
         </div>
     </nav>

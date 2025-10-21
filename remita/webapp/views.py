@@ -22,9 +22,12 @@ from django.db.models import Count, Q
 from django.db.models.functions import TruncDate
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, redirect
+from django.core.mail import send_mail
+from django.core import signing
+from django.urls import reverse
 
 from remita import settings
-from .forms import BankDetailsForm
+from .forms import BankDetailsForm, RegistrationForm
 from .permissions import user_is_approver, user_is_support_staff
 from .services import *
 from .models import *
@@ -548,8 +551,8 @@ def bankUploadCSVTemplate(request):
 Functions to Approve and Post Transactions
 
 """
-#@login_required(login_url='/')
-#@user_is_approver
+@login_required(login_url='/')
+@user_is_approver
 def homepage(request):
     # Build transactions grouped by DB alias for accordion display
     vendor_info = BankDetails.objects.all()
@@ -557,11 +560,11 @@ def homepage(request):
 
     # Build processed invoice IDs per project to avoid cross-project collisions
     processed_map: Dict[int, set] = {}
-    for row in ProcessedDeposits.objects.filter(transaction_date__gte="2025-01-01").values('project_id', 'invoiceid'):
+    for row in ProcessedDeposits.objects.values('project_id', 'invoiceid'):
         pid = row['project_id'] or 1
         inv = (row['invoiceid'] or '').strip()
         processed_map.setdefault(pid, set()).add(inv)
-
+    print(processed_map)
     friendly_names = dict(Projects.objects.values_list('project_code', 'project_name'))
     # Determine available SQL Server aliases from settings (exclude default)
     sql_aliases = [k for k in settings.DATABASES.keys() if k != 'default']
@@ -604,11 +607,24 @@ def homepage(request):
                     'REFERENCE': ref_map.get(payment.cntbtch, ''),
                 })
             if txns:
+                # Individual pagination per accordion group
+                try:
+                    per_page = int(request.GET.get('per_page', 25))
+                except Exception:
+                    per_page = 25
+                page_key = f"page_{alias}"
+                page_num = request.GET.get(page_key, 1)
+                paginator = Paginator(txns, per_page)
+                page_obj = paginator.get_page(page_num)
+
                 transactions_by_db_list.append({
                     'alias': alias,
                     'display_name': friendly_names.get(alias, alias),
                     'project_id': proj_id,
-                    'transactions': txns,
+                    'transactions': list(page_obj.object_list),
+                    'total_count': len(txns),
+                    'page_obj': page_obj,
+                    'page_key': page_key,
                 })
         except Exception as e:
             # Skip problematic aliases but continue others
@@ -651,7 +667,7 @@ def transaction_history(request):
                'count_list': count_list,
                'data_by_month': monthly_data,
                }
-
+    print(context)
     return render(request, "transaction-history.html", context)
 
 
@@ -849,13 +865,22 @@ def get_history_search_results(request):
 
         return render(request, 'transaction-history.html', context)
 
-def removetransaction (request,id):
-        processed = ProcessedDeposits(amount=0, transaction_date='',
-                                          vendorid='',
-                                          invoiceid=id,
-                                          vendorname='', status=2,
-                                          transaction_type="removed transaction",
-                                          processed_by=request.user.username)
+def removetransaction(request, invoice_id, project_id):
+        try:
+            project = Projects.objects.get(id=project_id)
+        except Projects.DoesNotExist:
+            # Fallback to default project id=1 if not found
+            project = Projects.objects.filter(id=1).first()
+        processed = ProcessedDeposits(
+            project=project,
+            amount=0,
+            transaction_date='',
+            vendorid='',
+            invoiceid=invoice_id,
+            vendorname='',
+            status=2,  # mark as removed/failed so it won’t be processed
+            processed_by=request.user.username
+        )
         processed.save()
         return redirect('webapp:homepage')
 
@@ -1003,7 +1028,7 @@ def check_account_balance(token, account_number, bank_code):
         }
 
 
-def initiate_bulk_payment(token, source_account_details, transactions):
+def initiate_bulk_payment(token, source_account_details, transactions, batch_ref=None):
     """
     Initiate bulk payment request
 
@@ -1033,8 +1058,8 @@ def initiate_bulk_payment(token, source_account_details, transactions):
         'Content-Type': 'application/json'
     }
 
-    # Generate unique batch reference
-    batch_ref = generate_unique_reference()
+    # Use provided batch reference if available, otherwise generate
+    batch_ref = batch_ref or generate_unique_reference()
 
     # Calculate total amount
     total_amount = sum(float(t['amount']) for t in transactions)
@@ -1042,8 +1067,15 @@ def initiate_bulk_payment(token, source_account_details, transactions):
     # Build transaction array
     transaction_items = []
     for idx, trans in enumerate(transactions, 1):
-        # Generate unique transaction reference if not provided
-        trans_ref = trans.get('invoice_id') or f"{batch_ref}{idx:04d}"
+        # Prefer client-provided transaction reference; otherwise generate a unique one
+        trans_ref = trans.get('transaction_ref') or generate_unique_reference()
+        # Build destination narration and include invoice id
+        base_narr = trans.get('remarks', 'Bulk Transfer')
+        inv_id = trans.get('invoice_id')
+        if inv_id:
+            dest_narr = f"{base_narr} | TransactionId: {inv_id}"
+        else:
+            dest_narr = base_narr
 
         transaction_items.append({
             "amount": float(trans['amount']),
@@ -1051,7 +1083,7 @@ def initiate_bulk_payment(token, source_account_details, transactions):
             "destinationBankCode": trans['bank_code'],
             "destinationAccount": trans['account_no'],
             "destinationAccountName": trans['account_name'],
-            "destinationNarration": trans.get('remarks', 'Bulk Transfer')
+            "destinationNarration": dest_narr
         })
 
     # Build request payload
@@ -1069,7 +1101,7 @@ def initiate_bulk_payment(token, source_account_details, transactions):
         "sourceNarration": source_account_details.get('sourceNarration', 'Bulk Payment Transaction'),
         "transactions": transaction_items
     }
-
+    print(payload)
     try:
         response = requests.post(url, headers=headers, json=payload, timeout=60)
         response_data = response.json()
@@ -1182,7 +1214,22 @@ def check_bulk_payment_details(token, batch_ref):
             'message': f'Error checking details: {str(e)}'
         }
 
+def create_entry(project_id, batch_ref, transaction, processed_by,status):
+    project = Projects.objects.get(id=project_id)
 
+    deposit = ProcessedDeposits.objects.create(
+        project=project,
+        batch_identifier=batch_ref,
+        invoiceid=transaction.get('invoice_id', ''),
+        vendorid=transaction.get('vendor_id', ''),
+        vendorname=transaction.get('account_name', ''),
+        transaction_date=transaction.get('date', ''),
+        amount=str(transaction.get('amount', 0)),
+        status=status,
+        processed_by=processed_by
+    )
+
+    return deposit
 def log_processed_deposit(project_id, batch_ref, transaction, status_code, processed_by,
                           transaction_type='BULK_TRANSFER'):
     """
@@ -1200,43 +1247,41 @@ def log_processed_deposit(project_id, batch_ref, transaction, status_code, proce
         ProcessedDeposits object or None if error
     """
 
-
     try:
         # Determine status based on status code
         # Status: 0=Pending, 1=Success, 2=Failed
         if status_code == '00':
             status = 1  # Success
+            create_entry(project_id, batch_ref, transaction, processed_by, status)
         elif status_code in ['01', '02', '04', '13', '16', '17', '18', '22', '24',
                              '26', '27', '28', '29', '30', '31', '33', '34', '36',
                              '37', '38', '42', '43', '44', '46', '50', '51', '54',
                              '55', '58', '59', '60', '65', '68', '71', '72', '74',
                              '75', '76', '77', '78', '79', '91', '94', '96']:
             status = 2  # Failed
+            # Don't create entry for failed transactions
+            return None
         else:
             status = 0  # Pending (all other codes including 001, 61, 07, 09, etc.)
-
-        project = Projects.objects.get(id=project_id)
-
-        deposit = ProcessedDeposits.objects.create(
-            project=project,
-            batch_identifier=batch_ref,
-            invoiceid=transaction.get('invoice_id', ''),
-            vendorid=transaction.get('vendor_id', ''),
-            vendorname=transaction.get('account_name', ''),
-            transaction_date=transaction.get('date', ''),
-            amount=str(transaction.get('amount', 0)),
-            status=status,
-            processed_by=processed_by
-        )
-
-        return deposit
+            create_entry(project_id, batch_ref, transaction, processed_by, status)
 
     except Exception as e:
         print(f"Error logging deposit: {str(e)}")
-
         traceback.print_exc()
         return None
 
+def delete_pending_transactions(request, invoice_id, project_id):
+    try:
+        pending = ProcessedDeposits.objects.get(status=0, invoiceid=invoice_id, project_id=project_id)
+        pending.delete()
+        messages.success(request, f'Pending transaction {invoice_id} has been deleted successfully.')
+        return redirect('webapp:transaction-history')
+    except ProcessedDeposits.DoesNotExist:
+        messages.error(request, f'No pending transaction found with invoice ID {invoice_id} for this project.')
+        return redirect('webapp:transaction-history')
+    except Exception as e:
+        messages.error(request, f'Error deleting transaction: {str(e)}')
+        return redirect('webapp:transaction-history')
 
 def update_transaction_status(invoice_id, status_code, response_message=''):
     """
@@ -1285,7 +1330,6 @@ def post_transactions(request):
         try:
             # Check and get valid token
             secret_key = check_and_refresh_token(request)
-            print("Using secret key:", secret_key)
             if not secret_key:
                 return JsonResponse({
                     'success': False,
@@ -1298,16 +1342,26 @@ def post_transactions(request):
             project_id = request.POST.get('project_id', 1)
             processed_by = request.user.username if hasattr(request, 'user') else 'system'
 
+            # Optional mapping of invoice_id -> client-generated transaction_ref
+            tx_refs_raw = request.POST.get('transaction_refs')
+            tx_refs = {}
+            try:
+                if tx_refs_raw:
+                    tx_refs = json.loads(tx_refs_raw)
+            except Exception:
+                tx_refs = {}
+
             print("Raw transactions:", transacs)
 
             transactions = []
             for entry in transacs:
                 values = entry['values']
                 entry_project_id = entry.get('project_id') or project_id or 1
+                inv_id = values[2]
                 transaction_element = {
                     'date': values[0],
                     'amount': values[1],
-                    'invoice_id': values[2],
+                    'invoice_id': inv_id,
                     'remarks': values[3],
                     'vendor_id': values[4],
                     'account_name': values[5],
@@ -1317,33 +1371,35 @@ def post_transactions(request):
                     'email': values[10] if len(values) > 10 else '',
                     'project_id': int(entry_project_id),
                 }
+                # Attach client transaction_ref if provided
+                if inv_id in tx_refs:
+                    transaction_element['transaction_ref'] = tx_refs.get(inv_id)
                 transactions.append(transaction_element)
 
 
             # Get source account details from request or settings
             source_account_details = {
-                'sourceBankCode': getattr(settings ,'REMITA_SOURCE_BANK_CODE', '925'),
-                'sourceAccount':getattr(settings,'REMITA_SOURCE_ACCOUNT_NO', '9256258124'),
-                'sourceAccountName': getattr(settings,'REMITA_SOURCE_ACCOUNT_NAME', '9256258124'),
-                'originalBankCode': getattr(settings,'REMITA_SOURCE_BANK_CODE', '925'),
-                'originalAccountNumber': getattr(settings, 'REMITA_SOURCE_ACCOUNT_NO', '9256258124'),
+                'sourceBankCode': getattr(settings ,'REMITA_SOURCE_BANK_CODE', '058'),
+                'sourceAccount':getattr(settings,'REMITA_SOURCE_ACCOUNT_NO', '0581426964'),
+                'sourceAccountName': getattr(settings,'REMITA_SOURCE_ACCOUNT_NAME', 'ABC'),
+                'originalBankCode': getattr(settings,'REMITA_SOURCE_BANK_CODE', '058'),
+                'originalAccountNumber': getattr(settings, 'REMITA_SOURCE_ACCOUNT_NO', '0581426964'),
                 'sourceNarration': request.POST.get('narration', 'Bulk Payment Transaction')
             }
 
             # Optional: Check balance before initiating
 
-            print(source_account_details)
-            # Initiate bulk payment
-            result = initiate_bulk_payment(secret_key, source_account_details, transactions)
+            # Initiate bulk payment (use client-provided batch_ref if available)
+            client_batch_ref = request.POST.get('batch_ref')
+            result = initiate_bulk_payment(secret_key, source_account_details, transactions, batch_ref=client_batch_ref)
             batch_ref = result['batch_ref']
-            print(result)
             # Log all transactions to database regardless of success/failure
             logged_count = 0
             for transaction in transactions:
                 # Get status code from response
                 status_code = result.get('response', {}).get('status', '81')  # Default to pending
 
-                deposit = log_processed_deposit(
+                log_processed_deposit(
                     project_id=transaction.get('project_id', project_id),
                     batch_ref=batch_ref,
                     transaction=transaction,
@@ -1352,9 +1408,7 @@ def post_transactions(request):
                     transaction_type='BULK_TRANSFER'
                 )
 
-                if deposit:
-                    logged_count += 1
-                    print(f"Logged transaction: {transaction['invoice_id']}")
+
 
             if result['success']:
                 return JsonResponse({
@@ -1450,9 +1504,110 @@ def live_search_bank_details(request):
         qs = BankDetails.objects.all()
         # Search by account_name icontains
         qs = qs.filter(account_name__icontains=q)
-        if vendor_id:
-            qs = qs.filter(vendor_id=vendor_id)
+
         qs = qs.values('account_name', 'account_no', 'bank_name', 'bank_code', 'vendor_id')[:limit]
+        print('results' , qs)
         return JsonResponse({'results': list(qs)})
     except Exception as e:
         return JsonResponse({'message': f'Error: {e}'}, status=500)
+
+
+
+
+REGISTRATION_SALT = 'user-registration-approval'
+
+
+def _superuser_recipients():
+    # superusers with valid email
+    emails = list(Users.objects.filter(is_superuser=True).exclude(email__isnull=True).exclude(email='').values_list('email', flat=True))
+    # optional fallback via settings.APPROVER_EMAILS if defined
+    fallback = getattr(settings, 'APPROVER_EMAILS', [])
+    for e in fallback:
+        if e not in emails:
+            emails.append(e)
+    return emails
+
+
+def register(request):
+    if request.method == 'POST':
+        form = RegistrationForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            # email superusers for approval
+            token = signing.dumps({'uid': user.id}, salt=REGISTRATION_SALT)
+            approve_url = request.build_absolute_uri(reverse('webapp:approve-registration', args=[token]))
+            reject_url = request.build_absolute_uri(reverse('webapp:reject-registration', args=[token]))
+            subject = 'New user registration pending approval'
+            body = (
+                f'A new user has registered and is pending approval.\n\n'
+                f'Username: {user.username}\n'
+                f'Role: {user.role}\n'
+                f'Email: {user.email or "(not provided)"}\n\n'
+                f'Approve: {approve_url}\n'
+                f'Reject: {reject_url}\n\n'
+                f'This link will expire in 7 days.'
+            )
+            from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'no-reply@example.com')
+            recipients = _superuser_recipients()
+            if recipients:
+                try:
+                    send_mail(subject, body, from_email, recipients, fail_silently=True)
+                except Exception:
+                    pass
+            messages.success(request, 'Registration submitted. You will receive an email once an administrator approves or rejects your request.')
+            return redirect('webapp:login')
+    else:
+        form = RegistrationForm()
+    return render(request, 'registration.html', {'form': form})
+
+
+def approve_registration(request, token: str):
+    try:
+        data = signing.loads(token, max_age=7*24*3600, salt=REGISTRATION_SALT)
+        uid = data.get('uid')
+        user = Users.objects.get(id=uid)
+    except Exception:
+        return render(request, 'registration_result.html', {'title': 'Invalid or expired link', 'message': 'The approval link is invalid or has expired.'})
+
+    if not user.is_active:
+        user.is_active = True
+        user.save(update_fields=['is_active'])
+        # notify user
+        if user.email:
+            try:
+                send_mail(
+                    'Your account has been approved',
+                    'Your registration has been approved. You can now sign in.',
+                    getattr(settings, 'DEFAULT_FROM_EMAIL', 'no-reply@example.com'),
+                    [user.email],
+                    fail_silently=True
+                )
+            except Exception:
+                pass
+    return render(request, 'registration_result.html', {'title': 'User approved', 'message': f'User {user.username} has been approved.'})
+
+
+def reject_registration(request, token: str):
+    try:
+        data = signing.loads(token, max_age=7*24*3600, salt=REGISTRATION_SALT)
+        uid = data.get('uid')
+        user = Users.objects.get(id=uid)
+    except Exception:
+        return render(request, 'registration_result.html', {'title': 'Invalid or expired link', 'message': 'The rejection link is invalid or has expired.'})
+
+    username = user.username
+    user_email = user.email
+    # delete the pending user account
+    user.delete()
+    if user_email:
+        try:
+            send_mail(
+                'Your account registration was rejected',
+                'We are sorry, your payment portal registration has been rejected.',
+                getattr(settings, 'DEFAULT_FROM_EMAIL', 'no-reply@example.com'),
+                [user_email],
+                fail_silently=True
+            )
+        except Exception:
+            pass
+    return render(request, 'registration_result.html', {'title': 'User rejected', 'message': f'User {username} has been rejected and removed.'})

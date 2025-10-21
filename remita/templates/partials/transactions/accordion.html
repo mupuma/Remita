@@ -34,7 +34,7 @@
       {% for group in transactions_by_db %}
         <div class="accordion-item mb-3">
           <h2 class="accordion-header" id="heading-{{ group.alias }}">
-            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ group.alias }}" aria-expanded="false" aria-controls="collapse-{{ group.alias }}">{{ group.display_name }} ({{ group.transactions|length }} records)
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ group.alias }}" aria-expanded="false" aria-controls="collapse-{{ group.alias }}">{{ group.display_name }} ({{ group.total_count }} records)
             </button>
           </h2>
           <div id="collapse-{{ group.alias }}" class="accordion-collapse collapse" aria-labelledby="heading-{{ group.alias }}" data-bs-parent="#dbAccordion">
@@ -86,7 +86,7 @@
                                 </div>
                                 <div class="modal-footer border-0">
                                   <button type="button" class="btn btn-secondary" onclick="$('#delete-transaction-modal-{{ transaction.IDINVC }}').modal('hide')" aria-label="Close">Close</button>
-                                  <a href="{% url 'webapp:remove-transaction' transaction.IDINVC %}" class="btn btn-danger">Delete</a>
+                                  <a href="{% url 'webapp:remove-transaction' transaction.IDINVC group.project_id %}" class="btn btn-danger">Delete</a>
                                 </div>
                               </div>
                             </div>
@@ -98,6 +98,40 @@
                     {% endfor %}
                   </tbody>
                 </table>
+                <!-- Per-accordion paginator -->
+                {% if group.page_obj and group.page_obj.paginator.num_pages > 1 %}
+                <div class="row paginator-wrap py-2 border-top pt-3" id="paginator-{{ group.alias }}"
+                     data-num-pages="{{ group.page_obj.paginator.num_pages }}">
+                  <div class="col-md-6 text-md-left mb-3 mb-md-0">
+                    <span>Showing page {{ group.page_obj.number }} of {{ group.page_obj.paginator.num_pages }}</span>
+                  </div>
+                  <div class="col-md-6 text-end">
+                    <div class="custom-pagination ml-auto">
+                      <span>
+                        {% if group.page_obj.has_previous %}
+                          <a href="?{{ group.page_key }}={{ group.page_obj.previous_page_number }}{% if request.GET.per_page %}&per_page={{ request.GET.per_page }}{% endif %}"
+                             class="px-2 previous">Prev</a>
+                          <a href="?{{ group.page_key }}=1{% if request.GET.per_page %}&per_page={{ request.GET.per_page }}{% endif %}"
+                             class="px-2 first">First</a>
+                        {% else %}
+                          <span class="px-2 text-muted">Prev</span>
+                          <span class="px-2 text-muted">First</span>
+                        {% endif %}
+                      </span>
+                      <span>
+                        {% if group.page_obj.has_next %}
+                          <a class="px-2 next" href="?{{ group.page_key }}={{ group.page_obj.next_page_number }}{% if request.GET.per_page %}&per_page={{ request.GET.per_page }}{% endif %}">Next</a>
+                          <a href="?{{ group.page_key }}={{ group.page_obj.paginator.num_pages }}{% if request.GET.per_page %}&per_page={{ request.GET.per_page }}{% endif %}"
+                             class="px-2">Last</a>
+                        {% else %}
+                          <span class="px-2 text-muted">Next</span>
+                          <span class="px-2 text-muted">Last</span>
+                        {% endif %}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                {% endif %}
               </div>
             </div>
           </div>
