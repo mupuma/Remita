@@ -19,43 +19,38 @@
 
             <!-- VENDOR ID -->
             <div class="formbold-input-flex">
-                <div id="vid">
-                    <label class="formbold-form-label">{{ form.vendor_id.label }}</label>
-                    {% render_field form.vendor_id type="text" name="vendor_id" id="vendor_id" class="formbold-form-input" %}
-                    {{ form.vendor_id.errors }}
-                </div>
 
                 <!-- BANK CODE -->
                 <div id="sortCode">
                     <label class="formbold-form-label">Bank Code</label>
                     <input class="formbold-form-input" name="bank_code" type="text" id="bank_code" placeholder="Enter bank code">
                 </div>
-            </div>
 
-            <!-- BANK NAME DROPDOWN -->
-            <div class="formbold-input-flex">
                 <div id="bankDropdownDiv">
                     <label class="formbold-form-label">Bank Name</label>
                     <select id="bankDropdown" name="bank_name" class="formbold-form-input" readonly>
                         <option value="">Select Bank</option>
                     </select>
                 </div>
+            </div>
 
+            <!-- BANK NAME DROPDOWN -->
+            <div class="formbold-input-flex">
                 <!-- ACCOUNT NUMBER -->
                 <div id="acc">
                     <label class="formbold-form-label">{{ form.account_no.label }}</label>
                     {% render_field form.account_no type="text" name="account_no" id="account_no" class="formbold-form-input" %}
                     {{ form.account_no.errors }}
                 </div>
-            </div>
-
-            <!-- ACCOUNT NAME -->
-            <div class="formbold-input-flex">
-                <div id="vname">
+                <!-- ACCOUNT NAME -->
+            <div id="vname">
                     <label class="formbold-form-label">{{ form.account_name.label }}</label>
                     {% render_field form.account_name type="text" name="account_name" id="account_name" class="formbold-form-input" %}
                     {{ form.account_name.errors }}
                 </div>
+            </div>
+            <!-- BRANCH NAME -->
+            <div class="formbold-input-flex">
 
                 <!-- BRANCH NAME -->
                 <div>
@@ -67,7 +62,7 @@
             <!-- CONTACT DETAILS -->
             <div class="formbold-input-flex">
                 <div id="email">
-                    <label class="formbold-form-label">{{ form.vendor_email.label }}</label>
+                    <label class="formbold-form-label">Beneficiary Email</label>
                     {% render_field form.vendor_email type="email" name="vendor_email" id="vendor_email" class="formbold-form-input" %}
                     {{ form.vendor_email.errors }}
                 </div>
