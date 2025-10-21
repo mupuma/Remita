@@ -65,6 +65,7 @@ class ProcessedDeposits(models.Model):
     project = models.ForeignKey(Projects, on_delete=models.CASCADE, related_name='processed_deposits', default=1)
     batch_identifier = models.CharField(max_length=255, blank=False, default='5674883')
     invoiceid = models.CharField(max_length=255, blank=False)
+    transaction_ref = models.CharField(max_length=255, null=True, blank=True, help_text='Provider transactionRef for this item')
     vendorid = models.CharField(max_length=255, blank=False,)
     vendorname = models.CharField(max_length=255, blank=False)
     transaction_date = models.CharField(max_length=255, blank=False, unique=False)

@@ -13,84 +13,56 @@
         <div class="formbold-form-wrapper">
             <form action="{% url 'webapp:edit-bank-details' acc_id=acc_id %}" method="POST" id="bankDetailsForm">
                 {% csrf_token %}
+
                 <div class="formbold-form-title">
-                    <h2 class="">Edit Vendor Bank Details</h2>
-                </div>
-                <div class="formbold-input-flex">
-                    <div id="vid">
-                        <label class="formbold-form-label"> {{ form.vendor_id.label }}</label>
-                        {% render_field form.vendor_id type="text" name="vendor_id" id="vendor_id" class="formbold-form-input" %}
-                        {{ form.vendor_id.errors }}
-                    </div>
-                    <div id="vname" >
-                        <label class="formbold-form-label"> {{ form.account_name.label }}</label>
-                        {% render_field form.account_name type="text" name="account_name" id="account_name" class="formbold-form-input" %}
-                        {{ form.account_name.errors }}
-                    </div>
-
+                    <h2>Edit Vendor Bank Details</h2>
                 </div>
 
                 <div class="formbold-input-flex">
-                    <div id="email">{{ form.vendor_email.label }} </label>
-                        {% render_field form.vendor_email type="text" name="vendor_email" id="vendoremail" class="formbold-form-input" %}
-                        {{ form.vendor_email.errors }}
-                    </div>
-                    <div id="vmno" >
-                        <label class="formbold-form-label">{{ form.vendor_mobile_number.label }}</label>
-                        {% render_field form.vendor_mobile_number type="text" name="vendor_mobile_no" id="vendorphone" class="formbold-form-input" %}
-                        {{form.vendor_mobile_number.errors }}       
-                    </div>
-                </div>
-                <div class="formbold-input-flex" >
-                    <div id="sortCode" >
-                        <label class="formbold-form-label">Sort Code</label>
-                        {% render_field form.sort_code type="text" name="sort_code" id="sort_code" class="formbold-form-input" %}
-                        
-                    </div>
-                    <div id="acc">
-                        <label class="formbold-form-label">{{ form.account_no.label }} </label>
-                        {% render_field form.account_no type="text" name="account_no" id="account_no" class="formbold-form-input" %}
+                   <div id="acc">
+                        <label class="formbold-form-label">{{ form.account_no.label }}</label>
+                        {% render_field form.account_no type="text" id="account_no" class="formbold-form-input" %}
                         {{ form.account_no.errors }}
                     </div>
-                   
-                    
-                </div>
-                <div class="formbold-input-flex" id="bankDetailDiv" >
-                    <div>
-                        <label class="formbold-form-label">Bank Name</label>
-                        {% render_field form.bank_name type="text" name="bank_n" id="bank_name" class="formbold-form-input" readonly=true %}
-                
+                    <div id="vname">
+                        <label class="formbold-form-label">{{ form.account_name.label }}</label>
+                        {% render_field form.account_name type="text" id="account_name" class="formbold-form-input" %}
+                        {{ form.account_name.errors }}
                     </div>
-                    <div>
-                        <label class="formbold-form-label">Branch Name</label>
-                        {% render_field form.branch type="text" name="branch" id="branch" readonly=true class="formbold-form-input" %}
-                        
-                    
-                    </div>
-                    
                 </div>
 
-                <button class="formbold-btn" id="submit" >Save
-                </button>
-                
-            </form>
-            <!--- <p class="or"></p>
-            <form action="{% url 'webapp:upload-bank-details-csv' %}" enctype="multipart/form-data" method="POST">
-                {% csrf_token %}
-                <div class="formbold-mb-3">
-                    <label for="csvupload" class="formbold-form-label">
-                        Upload Bank Details as Excel
-                    </label>
-                    <input
-                            type="file"
-                            name="csvupload"
-                            id="csvupload"
-                            class="formbold-form-input"
-                    />
+
+
+                <div class="formbold-input-flex">
+                    <div id="sortCode">
+                        <label class="formbold-form-label">{{ form.bank_code.label }}</label>
+                        {% render_field form.bank_code type="text" id="bank_code" class="formbold-form-input" readonly=true %}
+                        {{ form.bank_code.errors }}
+                    </div>
+                    <div>
+                        <label class="formbold-form-label">{{ form.bank_name.label }}</label>
+                        {% render_field form.bank_name type="text" id="bank_name" class="formbold-form-input" readonly=true %}
+                        {{ form.bank_name.errors }}
+                    </div>
                 </div>
-                <button class="formbold-btn">Upload</button>
-                <a href="{% url 'webapp:bank-details-template' %}" class="formbold-btn2">Export Template</a>
-            </form>-->
+
+             <div class="formbold-input-flex">
+                    <div id="email">
+                        <label class="formbold-form-label">{{ form.vendor_email.label }}</label>
+                        {% render_field form.vendor_email type="email" id="vendor_email" class="formbold-form-input" %}
+                        {{ form.vendor_email.errors }}
+                    </div>
+                    <div id="vmno">
+                        <label class="formbold-form-label">{{ form.vendor_mobile_number.label }}</label>
+                        {% render_field form.vendor_mobile_number type="text" id="vendor_mobile_number" class="formbold-form-input" %}
+                        {{ form.vendor_mobile_number.errors }}
+                    </div>
+                </div>
+
+
+                <button class="formbold-btn" id="submit">Save</button>
+            </form>
+
         </div>
     </div>
     

@@ -19,7 +19,7 @@
                     <button type="button" style="background-color: #183660;border-radius: 50px; "
                             class="btn text-white btn-md"
                             data-bs-toggle="modal"
-                            data-bs-target="#date-selector-modal"><i class="bi bi-filetype-xls"></i>
+                            data-bs-target="#date-selector-modal"><i class="bi bi-download"></i>
                     </button>
                     <button class="btn btn-md text-white" id="toggle-btn"
                             style="background-color: #183660 ;border-radius:50px;"><i class="bi bi-toggle-on"></i>
@@ -39,81 +39,111 @@
                 </div>
             </div>
         </div>
+
+        <!-- Filters -->
+        <div class="row mb-3">
+    <div class="col">
+        <form class="search-bar d-flex align-items-center justify-content-between" action="{% url 'webapp:search-transactions-history' %}" method="get" style="gap: .5rem;">
+            <div class="d-flex align-items-center" style="gap: .5rem;">
+                <select name="filter_options" id="history-filter-options" class="form-select" style="max-width: 240px;">
+                    <option value="" {% if not active_filters.filter_options %}selected{% endif %}>Select filter</option>
+                    <option value="invoice_id" {% if active_filters.filter_options == 'invoice_id' %}selected{% endif %}>Payment Number</option>
+                    <option value="vendor_id" {% if active_filters.filter_options == 'vendor_id' %}selected{% endif %}>Beneficiary ID</option>
+                    <option value="vendor_name" {% if active_filters.filter_options == 'vendor_name' %}selected{% endif %}>Beneficiary Name</option>
+                    <option value="amount" {% if active_filters.filter_options == 'amount' %}selected{% endif %}>Amount</option>
+                    <option value="status" {% if active_filters.filter_options == 'status' %}selected{% endif %}>Status</option>
+                    <option value="batch" {% if active_filters.filter_options == 'batch' %}selected{% endif %}>Batch</option>
+                    <option value="processed_by" {% if active_filters.filter_options == 'processed_by' %}selected{% endif %}>Processed By</option>
+                    <option value="project" {% if active_filters.filter_options == 'project' %}selected{% endif %}>Project</option>
+                </select>
+                <input type="text" name="search_params" id="history-search-input" class="form-control" placeholder="Type to search..." value="{{ active_filters.search_params }}" style="max-width: 260px;">
+            </div>
+            <div class="d-flex align-items-center" style="gap: .5rem;">
+                <button id="history-search-button" type="submit" class="btn btn-primary">Search</button>
+                <button type="button" id="history-export-pdf" data-query="{{ query_string }}" class="btn btn-success">Export PDF</button>
+                {% if active_filters.filter_options or active_filters.search_params %}
+                    <a href="{% url 'webapp:transaction-history' %}" class="btn btn-light">Clear</a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
         <div class="row">
             <div class="col">
                 <div class="card shadow-sm border-0 p-2">
-                    <table class="table table-hover mt-3 ">
+                    <table class="table table-hover mt-3">
                         <thead>
                         <tr>
                             <th scope="col"></th>
                             <th scope="col">Date</th>
                             <th scope="col">Amount</th>
-                            <th scope="col">Invoice Number</th>
+                            <th scope="col">Payment Number</th>
                             <th scope="col">Beneficiary ID</th>
                             <th scope="col">Beneficiary Name</th>
                             <th scope="col">Project</th>
                             <th scope="col">Batch</th>
                             <th scope="col">Status</th>
                             <th scope="col">Processed By</th>
-                            <th scop="col">Timestamp</th>
+                            <th scope="col">Timestamp</th>
                             <th scope="col" class="text-right">Actions</th>
                         </tr>
-
                         </thead>
+                        <tbody id="table-body">
                         {% for transaction in transaction_info %}
-                            <tbody id="table-body">
-                            <td></td>
-                            <td>{{ transaction.transaction_date }}</td>
-                            <td>{{ transaction.amount }}</td>
-                            <td>{{ transaction.invoiceid }}</td>
-                            <td>{{ transaction.vendorid }}</td>
-                            <td>{{ transaction.vendorname }}</td>
-                            <td>{{ transaction.project.project_name }}</td>
-                            <td>{{ transaction.batch_identifier }}</td>
-                            <td>
-                                {% if transaction.status == 0 %}
-                                    Pending
-                                {% elif transaction.status == 1 %}
-                                    Success
-                                {% elif transaction.status == 2 %}
-                                    Failed
-                                {% else %}
-                                    Unknown
-                                {% endif %}
-                            </td>
-                            <td>{{ transaction.processed_by }}</td>
-                            <td>{{ transaction.timestamp }}</td>
-                            <td class="text-right">
-                                <div class="btn-group btn-group-sm" role="group" aria-label="Actions" style="gap: .5rem;">
-                                    <button type="button" class="btn btn-danger shadow-sm" data-bs-toggle="modal" data-bs-target="#delete-pending-modal-{{ transaction.invoiceid }}-{{ transaction.project.id }}" title="Delete"
-                                    {% if transaction.status != 0  %} disabled {% endif %} >
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                    <button type="button" class="btn btn-success btn-view-status shadow-sm" data-batch="{{ transaction.batch_identifier }}" title="View Status">
-                                        <i class="bi bi-eye"></i>
-                                    </button>
-                                </div>
-                                <div id="delete-pending-modal-{{ transaction.invoiceid }}-{{ transaction.project.id }}" class="modal fade" tabindex="-1" aria-hidden="true">
-                                    <div class="modal-dialog modal-dialog-centered" role="document">
-                                        <div class="modal-content p-2">
-                                            <div class="modal-header border-0">
-                                                <h5 class="modal-title">Confirm Deletion</h5>
-                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                            </div>
-                                            <div class="modal-body p-1">
-                                                <p>Are you sure you want to delete the record of the pending transaction {{ transaction.invoiceid }} for project {{ transaction.project.project_name }}?</p>
-                                            </div>
-                                            <div class="modal-footer border-0">
-                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                                <a href="{% url 'webapp:delete-pending' invoice_id=transaction.invoiceid project_id=transaction.project.id %}" class="btn btn-danger">Delete</a>
+                            <tr>
+                                <td></td>
+                                <td>{{ transaction.transaction_date }}</td>
+                                <td>{{ transaction.amount }}</td>
+                                <td data-transaction-ref="{{ transaction.transaction_ref }}">{{ transaction.invoiceid }}</td>
+                                <td>{{ transaction.vendorid }}</td>
+                                <td>{{ transaction.vendorname }}</td>
+                                <td>{{ transaction.project.project_name }}</td>
+                                <td>{{ transaction.batch_identifier }}</td>
+                                <td>
+                                    {% if transaction.status == 0 %}
+                                        Pending
+                                    {% elif transaction.status == 1 %}
+                                        Success
+                                    {% elif transaction.status == 2 %}
+                                        Failed
+                                    {% else %}
+                                        Unknown
+                                    {% endif %}
+                                </td>
+                                <td>{{ transaction.processed_by }}</td>
+                                <td>{{ transaction.timestamp }}</td>
+                                <td class="text-right">
+                                    <div class="btn-group btn-group-sm" role="group" aria-label="Actions" style="gap: .5rem;">
+                                        <button type="button" class="btn btn-danger shadow-sm" data-bs-toggle="modal" data-bs-target="#delete-pending-modal-{{ transaction.invoiceid }}-{{ transaction.project.id }}" title="Delete"
+                                        {% if transaction.status != 0  %} disabled {% endif %} >
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-success btn-view-status shadow-sm" data-batch="{{ transaction.batch_identifier }}" title="View Status">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                    </div>
+                                    <div id="delete-pending-modal-{{ transaction.invoiceid }}-{{ transaction.project.id }}" class="modal fade" tabindex="-1" aria-hidden="true">
+                                        <div class="modal-dialog modal-dialog-centered" role="document">
+                                            <div class="modal-content p-2">
+                                                <div class="modal-header border-0">
+                                                    <h5 class="modal-title">Confirm Deletion</h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                </div>
+                                                <div class="modal-body p-1">
+                                                    <p>Are you sure you want to delete the record of the pending transaction {{ transaction.invoiceid }} for project {{ transaction.project.project_name }}?</p>
+                                                </div>
+                                                <div class="modal-footer border-0">
+                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                    <a href="{% url 'webapp:delete-pending' invoice_id=transaction.invoiceid project_id=transaction.project.id %}" class="btn btn-danger">Delete</a>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
-                            </td>
-                            </tbody>
+                                </td>
+                            </tr>
                         {% endfor %}
-
+                        </tbody>
                     </table>
                     {% include 'partials/transactions/home-page-paginator.html' %}
                 </div>
@@ -129,7 +159,7 @@
         <div class="modal-dialog modal-lg modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Batch Status</h5>
+                    <h5 class="modal-title">Transaction Status</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
@@ -152,24 +182,35 @@
 
             $(document).on('click', '.btn-view-status', function () {
                 const batchRef = $(this).data('batch');
-                if (!batchRef) return;
+                const $row = $(this).closest('tr');
+                const txRef = $row.find('td[data-transaction-ref]').data('transaction-ref');
+                if (!txRef || !batchRef) return;
                 const modal = new bootstrap.Modal(document.getElementById('statusModal'));
                 $('#statusModalBody').html('<p class="text-muted">Fetching status...</p>');
                 modal.show();
-                fetch(`/status/${batchRef}/`)
+                const url = `/status/${encodeURIComponent(batchRef)}/`;
+                fetch(url)
                     .then(resp => resp.json())
-                    .then(data => {
-                        if (!data.success) {
-                            $('#statusModalBody').html(`<div class="alert alert-danger">${data.message || 'Unable to fetch status'}</div>`);
+                    .then(payload => {
+                        // New minimal schema: { status, message, meta, links, code, data:{transactions, pagination} }
+                        if (!payload || !payload.data) {
+                            $('#statusModalBody').html('<div class="alert alert-danger">Unable to fetch status</div>');
                             return;
                         }
-                        const summary = data.summary || {};
-                        const details = data.details || {};
+                        const list = (payload.data.transactions || []);
+                        const t = list.find(x => String(x.paymentIdentifier) === String(txRef));
                         let html = '';
-                        html += '<h6>Summary</h6>';
-                        html += '<pre class="bg-light p-2">' + JSON.stringify(summary, null, 2) + '</pre>';
-                        html += '<h6>Details</h6>';
-                        html += '<pre class="bg-light p-2">' + JSON.stringify(details, null, 2) + '</pre>';
+                        html += '<div class="mb-2"><span class="badge bg-secondary">Batch: ' + (batchRef || 'N/A') + '</span></div>';
+                        html += '<div class="table-responsive">';
+                        html += '<table class="table table-sm">';
+                        html += '<thead><tr><th>Payment Identifier</th><th>Status</th></tr></thead>';
+                        html += '<tbody>';
+                        if (t) {
+                            html += `<tr><td>${t.paymentIdentifier || ''}</td><td>${t.status || ''}</td></tr>`;
+                        } else {
+                            html += `<tr><td colspan="2" class="text-muted">Transaction not found in this batch</td></tr>`;
+                        }
+                        html += '</tbody></table></div>';
                         $('#statusModalBody').html(html);
                     })
                     .catch(err => {
@@ -178,10 +219,18 @@
             });
         })
     </script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
     <script>
-        datepicker1 = document.getElementById('datepicker1')
-        datepicker2 = document.getElementById('datepicker2')
+        // Initialize date pickers
+        const datepicker1 = document.getElementById('datepicker1');
+        const datepicker2 = document.getElementById('datepicker2');
         const exportButton = document.getElementById('excel-modal-submit-button');
+        const pdfButton = document.getElementById('pdf-modal-submit-button');
+
+        // Initialize state variables
+        let isStartDateEmpty = true;
+        let isEndDateEmpty = true;
 
         flatpickr(datepicker2, {
             dateFormat: "d-m-Y"
@@ -189,10 +238,12 @@
         flatpickr(datepicker1, {
             dateFormat: "d-m-Y"
         });
+
         datepicker1.addEventListener('input', (e) => {
             isStartDateEmpty = false;
             if (isStartDateEmpty === false && isEndDateEmpty === false) {
                 exportButton.removeAttribute('disabled');
+                pdfButton.removeAttribute('disabled');
             }
         });
 
@@ -200,37 +251,79 @@
             isEndDateEmpty = false;
             if (isStartDateEmpty === false && isEndDateEmpty === false) {
                 exportButton.removeAttribute('disabled');
+                pdfButton.removeAttribute('disabled');
             }
         });
-       
 
         exportButton.addEventListener('click', (e) => {
-
-            e.preventDefault()
+            e.preventDefault();
             fetch(`/download/?start_date=${datepicker1.value}&end_date=${datepicker2.value}`)
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
-        }
-        return response.blob();
-    })
-    .then(blob => {
-        // Create temporary link to download the Excel file
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `Transaction_History_${datepicker1.value}_${datepicker2.value}.xlsx`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-    })
-    .catch(error => {
-        console.error('Error downloading transaction history:', error);
-    });
-    });
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.blob();
+                })
+                .then(blob => {
+                    // Create temporary link to download the Excel file
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `Transaction_History_${datepicker1.value}_${datepicker2.value}.xlsx`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                })
+                .catch(error => {
+                    console.error('Error downloading transaction history:', error);
+                    alert('Error downloading transaction history: ' + error.message);
+                });
+        });
 
-       
+        pdfButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            const s = datepicker1.value;
+            const eDate = datepicker2.value;
+            fetch(`/download/json/?start_date=${s}&end_date=${eDate}`)
+                .then(r => r.json())
+                .then(payload => {
+                    if (!payload.success) {
+                        throw new Error(payload.message || 'Unable to fetch data');
+                    }
+                    const rows = payload.results || [];
+                    // Build table data
+                    const head = [['Amount', 'Invoice ID', 'Posting Date/Time', 'Transaction Date', 'Vendor ID', 'Vendor Name', 'Project', 'Batch', 'Status', 'Processed By']];
+                    const body = rows.map(r => [
+                        r.amount || '',
+                        r.invoiceid || '',
+                        r.timestamp || '',
+                        r.transaction_date || '',
+                        r.vendorid || '',
+                        r.vendorname || '',
+                        r['project__project_name'] || '',
+                        r.batch_identifier || '',
+                        (r.status === 0 ? 'Pending' : (r.status === 1 ? 'Success' : (r.status === 2 ? 'Failed' : 'Unknown'))),
+                        r.processed_by || ''
+                    ]);
 
+                    const { jsPDF } = window.jspdf;
+                    const doc = new jsPDF('l', 'pt', 'a4');
+                    doc.setFontSize(14);
+                    doc.text(`Transaction History (${s} to ${eDate})`, 40, 40);
+                    doc.autoTable({
+                        startY: 60,
+                        head: head,
+                        body: body,
+                        styles: { fontSize: 8 },
+                        headStyles: { fillColor: [24, 54, 96] }
+                    });
+                    doc.save(`Transaction_History_${s}_${eDate}.pdf`);
+                })
+                .catch(err => {
+                    console.error('Error generating PDF:', err);
+                    alert('Error generating PDF: ' + err.message);
+                });
+        });
     </script>
     <script>
         function hideModal() {
@@ -257,16 +350,13 @@
                         backgroundColor: "#183660",
                         borderColor: "#124271",
                         data: dataPoints,
-
                     }]
                 },
                 options: {
                     scales: {
                         y: {
-
                             suggestedMin: 0,
                             suggestedMax: 100
-
                         }
                     }
                 }
@@ -282,20 +372,83 @@
                         backgroundColor: "#183660",
                         borderColor: "#124271",
                         data: [{% for count_list in count_list %}{{ count_list|safe }}, {% endfor %}],
-
                     }]
                 },
                 options: {
                     scales: {
                         y: {
-
                             suggestedMin: 0,
                             suggestedMax: 100
-
                         }
                     }
                 }
             });
         });
+    </script>
+
+    <script>
+    (function(){
+      const btn = document.getElementById('history-export-pdf');
+      if (!btn || !window.jspdf) return;
+
+      function parseQuery(qs){
+        const out = {};
+        (qs || '').replace(/^\?/, '').split('&').forEach(p=>{
+          if(!p) return;
+          const [k,v] = p.split('=');
+          out[decodeURIComponent(k)] = decodeURIComponent(v||'');
+        });
+        return out;
+      }
+
+      btn.addEventListener('click', function(){
+        const qs = (btn.getAttribute('data-query')||'').trim();
+        const url = qs ? `/history-export/json/?${qs}` : '/history-export/json/';
+
+        fetch(url)
+          .then(r=>r.json())
+          .then(payload=>{
+            if(!payload.success){
+              throw new Error(payload.message || 'Unable to fetch data');
+            }
+            const rows = payload.results || [];
+            const head = [['Amount','Payment Number','Posting Date/Time','Transaction Date','Beneficiary ID','Beneficiary Name','Project','Batch','Status','Processed By']];
+            const body = rows.map(r=>[
+              r.amount || '',
+              r.invoiceid || '',
+              r.timestamp || '',
+              r.transaction_date || '',
+              r.vendorid || '',
+              r.vendorname || '',
+              r['project__project_name'] || '',
+              r.batch_identifier || '',
+              (r.status === 0 ? 'Pending' : (r.status === 1 ? 'Success' : (r.status === 2 ? 'Failed' : 'Unknown'))),
+              r.processed_by || ''
+            ]);
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('l','pt','a4');
+            const qp = parseQuery(qs);
+            const s = qp.start_date || '';
+            const e = qp.end_date || '';
+            doc.setFontSize(14);
+            const title = (s && e) ? `Filtered Transaction History (${s} to ${e})` : 'Filtered Transaction History';
+            doc.text(title, 40, 40);
+            doc.autoTable({
+              startY: 60,
+              head: head,
+              body: body,
+              styles: { fontSize: 8 },
+              headStyles: { fillColor: [24,54,96] }
+            });
+            const fname = (s && e) ? `Filtered_Transaction_History_${s}_${e}.pdf` : 'Filtered_Transaction_History.pdf';
+            doc.save(fname);
+          })
+          .catch(err=>{
+            console.error('PDF export failed:', err);
+            alert('Unable to export PDF: ' + err.message);
+          });
+      });
+    })();
     </script>
 {% endblock %}

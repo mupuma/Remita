@@ -604,10 +604,9 @@ if (modalSubmitBtn){
 
 if (searchBtn){searchBtn.addEventListener('click', (e) => {
     e.preventDefault();
-    hasClickedOnSearchBtn = true;
-    query_params = [searchInput.value, filterOptions.value];
-
-    fetchSearchResults(query_params, selectedPageNumber);
+    const q = encodeURIComponent(searchInput.value || '');
+    const f = encodeURIComponent(filterOptions.value || '');
+    window.location.href = `search/?search_params=${q}&filter_options=${f}`;
 })}
 if (filterOptions){
     filterOptions.addEventListener('change', () => {

@@ -35,10 +35,11 @@
             <div class="collapse navbar-collapse" id="mainNav">
                 <ul class="navbar-nav ms-auto align-items-lg-center flex-row gap-2 gap-lg-0">
                     {% if request.user.role == '001' %}
-                        <li class="nav-item px-2"><a href="{% url 'webapp:upload-bank-details' %}"
+
+                        <li class="nav-item px-2"><a href="{% url 'webapp:bank-details' %}" class="text-white nav-link navbar-link">Vendor Bank Details</a></li>
+                    <li class="nav-item px-2"><a href="{% url 'webapp:upload-bank-details' %}"
                                                      class="text-white nav-link navbar-link">Add Vendor
                             Bank Details</a></li>
-                        <li class="nav-item px-2"><a href="{% url 'webapp:bank-details' %}" class="text-white nav-link navbar-link">Vendor Bank Details</a></li>
                     {% elif request.user.role == '002' %}
                         <li class="nav-item px-2"><a href="{% url 'webapp:homepage' %}" class="text-white nav-link navbar-link">Transactions</a></li>
                         <li class="nav-item px-2"><a href="{% url 'webapp:transaction-history' %}"

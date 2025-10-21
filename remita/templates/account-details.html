@@ -1,100 +1,137 @@
 {% extends 'base2.html' %}
 {% load static %}
 {% load widget_tweaks %}
+
 {% block content %}
+<div class="formbold-main-wrapper">
+    {% if messages %}
+        {% for message in messages %}
+            <p class="text-muted text-center">{{ message }}</p>
+        {% endfor %}
+    {% endif %}
 
-    <div class="formbold-main-wrapper">
-        {% if messages %}
-            {% for message in messages %}
-                <p class="text-muted text-center"> {{ message }} </p>
-            {% endfor %}
-        {% endif %}
+    <div class="formbold-form-wrapper shadow-sm">
+        <form action="{% url 'webapp:upload-bank-details' %}" method="POST" id="bankDetailsForm">
+            {% csrf_token %}
+            <div class="formbold-form-title">
+                <h2>Add Vendor Bank Details</h2>
+            </div>
 
-        <div class="formbold-form-wrapper shadow-sm">
-            <form action="{% url 'webapp:upload-bank-details' %}" method="POST" id="bankDetailsForm">
-                {% csrf_token %}
-                <div class="formbold-form-title">
-                    <h2 class="">Add Vendor Bank Details</h2>
-                </div>
-                <div class="formbold-input-flex">
-                    <div id="vid">
-                        <label class="formbold-form-label"> {{ form.vendor_id.label }}</label>
-                        {% render_field form.vendor_id type="text" name="vendor_id" id="vendor_id" class="formbold-form-input" %}
-                        {{ form.vendor_id.errors }}
-                    </div>
-                    <div id="vname" >
-                        <label class="formbold-form-label"> {{ form.account_name.label }}</label>
-                        {% render_field form.account_name type="text" name="account_name" id="accountname" class="formbold-form-input" %}
-                        {{ form.account_name.errors }}
-                    </div>
+            <div class="formbold-input-flex">
 
+                <!-- BANK CODE -->
+                <div id="sortCode">
+                    <label class="formbold-form-label">Bank Code</label>
+                    <input class="formbold-form-input" name="bank_code" type="text" id="bank_code" placeholder="Enter bank code">
                 </div>
 
-                <div class="formbold-input-flex">
-                    <div id="email" hx-select="#email"
-                         hx-post="{% url 'webapp:upload-bank-details' %}"
-                         hx-trigger="blur from:find input" hx-taget="#email">
-                        <label class="formbold-form-label">{{ form.vendor_email.label }} </label>
-                        {% render_field form.vendor_email type="text" name="vendor_email" id="vendoremail" class="formbold-form-input" %}
-                        {{ form.vendor_email.errors }}
-                    </div>
-                    <div id="vmno" hx-select="#vmno" hx-post="{% url 'webapp:upload-bank-details' %}"
-                         hx-trigger="blur from:find input" hx-taget="#vmno">
-                        <label class="formbold-form-label">{{ form.vendor_mobile_number.label }}</label>
-                        {% render_field form.vendor_mobile_number type="text" name="vendor_mobile_no" id="vendorphone" class="formbold-form-input" %}
-                        {{form.vendor_mobile_number.errors }}       
-                    </div>
+                <div id="bankDropdownDiv">
+                    <label class="formbold-form-label">Bank Name</label>
+                    <select id="bankDropdown" name="bank_name" class="formbold-form-input" readonly>
+                        <option value="">Select Bank</option>
+                    </select>
                 </div>
-                <div class="formbold-input-flex" >
-                    <div id="sortCode" >
-                        <label class="formbold-form-label">Bank Code</label>
-                        <input class="formbold-form-input"  name="bank_code" readonly type="text" id="sort_code">
-                    </div>
-                    <div id="acc">
-                        <label class="formbold-form-label">{{ form.account_no.label }} </label>
-                        {% render_field form.account_no readonly=true type="text" name="account_no" id="account_no" class="formbold-form-input" %}
-                        {{ form.account_no.errors }}
-                    </div>
-                   
-                    
+            </div>
+
+            <!-- BANK NAME DROPDOWN -->
+            <div class="formbold-input-flex">
+                  <div>
+                    <label class="formbold-form-label">Branch Name</label>
+                    <input id="branch" name="branch" class="formbold-form-input" type="text" placeholder="Enter branch name">
                 </div>
-                <div class="formbold-input-flex d-none" id="bankDetailDiv" >
-                    <div>
-                        <label class="formbold-form-label">Bank Name</label>
-                        <input id="bank_name" name="bank_name" class="formbold-form-input" readonly>
-                    </div>
-                    <div>
-                        <label class="formbold-form-label">Branch Name</label>
-                        <input id="branch" name="branch" class="formbold-form-input" readonly>
-                    
-                    </div>
-                    
+                <!-- ACCOUNT NUMBER -->
+                <div id="acc">
+                    <label class="formbold-form-label">{{ form.account_no.label }}</label>
+                    {% render_field form.account_no type="text" id="account_no" class="formbold-form-input" %}
+                    {{ form.account_no.errors }}
+                </div>
+                <!-- ACCOUNT NAME -->
+
+            </div>
+
+            <!-- CONTACT DETAILS -->
+            <div class="formbold-input-flex">
+                 <div id="vname">
+                    <label class="formbold-form-label">{{ form.account_name.label }}</label>
+                    {% render_field form.account_name type="text" id="account_name" class="formbold-form-input" %}
+                    {{ form.account_name.errors }}
+                </div>
+                <div id="email">
+                    <label class="formbold-form-label">Beneficiary Email</label>
+                    {% render_field form.vendor_email type="email" name="vendor_email" id="vendor_email" class="formbold-form-input" %}
+                    {{ form.vendor_email.errors }}
                 </div>
 
-                <button class="formbold-btn" id="submit" disabled>Save</button>
-            </form>
-            <!--- <p class="or"></p>
-            <form action="{% url 'webapp:upload-bank-details-csv' %}" enctype="multipart/form-data" method="POST">
-                {% csrf_token %}
-                <div class="formbold-mb-3">
-                    <label for="csvupload" class="formbold-form-label">
-                        Upload Bank Details as Excel
-                    </label>
-                    <input
-                            type="file"
-                            name="csvupload"
-                            id="csvupload"
-                            class="formbold-form-input"
-                    />
+
+            </div>
+            <!-- BRANCH NAME -->
+            <div class="formbold-input-flex">
+
+              <div id="vmno">
+                    <label class="formbold-form-label">{{ form.vendor_mobile_number.label }}</label>
+                    {% render_field form.vendor_mobile_number type="text" id="vendor_mobile_number" class="formbold-form-input" %}
+                    {{ form.vendor_mobile_number.errors }}
                 </div>
-                <button class="formbold-btn">Upload</button>
-                <a href="{% url 'webapp:bank-details-template' %}" class="formbold-btn2">Export Template</a>
-            </form>-->
-        </div>
+
+            </div>
+
+            <div class="text-center mt-3">
+                <button class="formbold-btn" id="submit">Save</button>
+            </div>
+        </form>
     </div>
+</div>
 {% endblock %}
 
 {% block extra-scripts %}
-    <script src="{% static 'js/processBankDetails.js' %}"></script>
-    <script> </script>
-    {% endblock %}
+<script src="{% static 'js/processBankDetails.js' %}"></script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const sortCodeInput = document.getElementById("bank_code");
+    const bankDropdown = document.getElementById("bankDropdown");
+    const submitBtn = document.getElementById("submit");
+
+    let bankList = [];
+
+    // 🔹 Fetch bank list once from backend
+    fetch("{% url 'webapp:load-bank-list' %}")
+        .then(response => response.json())
+        .then(data => {
+            bankList = Array.isArray(data) ? data : (data.banks || []);
+            console.log("✅ Loaded", bankList.length, "banks from API");
+
+            // Populate dropdown
+            bankList.forEach(bank => {
+                const option = document.createElement("option");
+                option.value = bank.bankCode;
+                option.textContent = `${bank.bankName} (${bank.bankCode})`;
+                bankDropdown.appendChild(option);
+            });
+        })
+        .catch(error => console.error("❌ Failed to load banks:", error));
+
+    // 🔹 When Bank Code changes → auto-select Bank Name
+    sortCodeInput.addEventListener("blur", function() {
+        const code = sortCodeInput.value.trim();
+        if (!code || !bankList.length) return;
+
+        const matchedBank = bankList.find(bank => bank.bankCode === code);
+        if (matchedBank) {
+            bankDropdown.value = matchedBank.bankCode;
+            submitBtn.disabled = false;
+        } else {
+            bankDropdown.value = "";
+            submitBtn.disabled = true;
+        }
+    });
+
+    // 🔹 When Bank Name changes → auto-update Bank Code
+    bankDropdown.addEventListener("change", function() {
+        const selectedCode = bankDropdown.value;
+        sortCodeInput.value = selectedCode || "";
+        submitBtn.disabled = !selectedCode;
+    });
+});
+</script>
+{% endblock %}

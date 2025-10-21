@@ -25,6 +25,7 @@ from django.shortcuts import render, redirect
 from django.core.mail import send_mail
 from django.core import signing
 from django.urls import reverse
+from django.views.decorators.http import require_GET
 
 from remita import settings
 from .forms import BankDetailsForm, RegistrationForm
@@ -36,7 +37,7 @@ from .models import Projects
 import requests
 import pandas as pd
 
-transaction_headers=["Content-Type: application/json; charset=utf-8"]
+
 
 """
 Functions to Handle User Authentication and Authorization
@@ -248,48 +249,51 @@ Functions to Handle Vendor Bank Details Upload and Validation
 """
 
 
-def zicb_customer_account_number_check(request):
-    account_no = request.GET['account_no']
-    data = {
-        "service": "ZB0627",
-        "request": {
-            "accountNos": f"{account_no}"
-        }
-    }
-    response = requests.post(url=URL, headers={"Content-Type": "application/json; charset=utf-8", "authkey": API_KEY},
-                             json=data, verify=False)
-    response = response.json()
-    account_list = response['response']['accountList']
-    print(account_list)
-    if account_list == []:
-        return JsonResponse({'response': False}, safe=False)
-    else:
-        return JsonResponse({'response': account_list}, safe=False)
 
 
-def other_bank_account_number_check(request):
-    account_no = request.GET['account_no']
-    serviceID = request.GET['service_id']
-    data = {
-        "service": "MT002",
-        "request": {
-            "payload": {
-                "serviceID": f"{serviceID}",
-                "accountNumber": f"{account_no}",
-                "currencyCode": "ZMW",
-                "countryCode": "260"
-            }
-        }
+def loadBankList(request):
+    """Fetch the list of banks from Remita API (GET request)."""
+    transaction_headers = {
+        "Content-Type": "application/json; charset=utf-8",
+        "Accept": "application/json",
+        "Authorization": f"Bearer {check_and_refresh_token()}",
     }
-    response = requests.post(url=URL,
-                             headers={"Content-Type": "application/json; charset=utf-8", "authkey": API_KEY},
-                             json=data, verify=False)
-    response = response.json()
-    print(response)
-    if response["response"]["results"][0]["statusDescription"] == "Account number provided is valid":
-        return JsonResponse({'response': response["response"]["results"]}, safe=False)
-    else:
-        return JsonResponse({'response': False})
+
+    try:
+        # Make a GET request to the Remita API
+        resp = requests.get(
+            url="https://api-demo.systemspecsng.com/services/connect-gateway/api/v1/integration/banks",
+            headers=transaction_headers,
+            verify=False
+        )
+
+        print("Raw bank list response:", resp.text)
+
+        data = resp.json()
+
+        # ✅ Handle API error properly
+        if data.get("status") != "00":
+            return JsonResponse(
+                {
+                    "success": False,
+                    "status": data.get("status"),
+                    "message": data.get("message", "Failed to fetch bank list"),
+                },
+                status=400
+            )
+
+        # ✅ Extract and return only the bank list
+        bank_list = data.get("data", {}).get("banks", [])
+        return JsonResponse(bank_list, safe=False)
+
+    except requests.exceptions.RequestException as e:
+        print(f"Network error while fetching bank list: {e}")
+        return JsonResponse({"error": "Network error while fetching bank list"}, status=500)
+
+    except ValueError:
+        return JsonResponse({"error": "Invalid JSON from API"}, status=500)
+
+
 
 
 def checkVendorDetails(request):
@@ -312,118 +316,123 @@ def delete_vendor(requst, acc_no):
         return redirect('webapp:bank-details')
 
 
-def loadBankList(request):
-    resp = requests.post(url=URL, headers=transaction_headers, json={"service": "BNK9901", "request": {}},
-                         verify=False)
-    resp = resp.json()
-    if resp['operation_status'] == 'SUCCESS':
-        resp = resp['response']['bankList']
+@login_required(login_url="/")
+@user_is_support_staff
+def bankUploadViaForm(request):
+    """Uploads bank details and auto-fills bank name and details from Remita, with name enquiry validation."""
+    form = BankDetailsForm(request.POST or None)
 
-        return JsonResponse(resp, safe=False)
+    if request.method == 'POST' and form.is_valid():
+        vendor = form.save(commit=False)
+        bank_code = form.cleaned_data.get('bank_code')
+        account_no = form.cleaned_data.get('account_no')
+
+        transaction_headers = {
+            "Content-Type": "application/json; charset=utf-8",
+            "Accept": "application/json",
+            "Authorization": f"Bearer {check_and_refresh_token()}",
+        }
+
+        try:
+            # Fetch bank list to resolve bank name from bank code
+            resp = requests.get(
+                url="https://api-demo.systemspecsng.com/services/connect-gateway/api/v1/integration/banks",
+                headers=transaction_headers,
+                verify=False
+            )
+
+            data = resp.json()
+            bank_list = data.get("data", {}).get("banks", [])
+
+            matched_bank = next((bank for bank in bank_list if bank.get("bankCode") == bank_code), None)
+
+            if matched_bank:
+                vendor.bank_name = matched_bank.get("bankName")
+            else:
+                vendor.bank_name = None
+
+            # Perform name enquiry to validate account and get official account name
+            token = check_and_refresh_token()
+            enquiry = perform_name_enquiry(token, bank_code, account_no)
+            if not enquiry.get('success'):
+                # Add a form error and re-render the form without saving
+                error_msg = enquiry.get('message') or 'Account not found during name enquiry.'
+                form.add_error('account_no', error_msg)
+                messages.error(request, error_msg)
+                return render(request, 'account-details.html', {'form': form})
+
+            # If successful, override account_name with response to ensure correctness
+            vendor.account_name = enquiry.get('account_name') or vendor.account_name
+
+            vendor.save()
+            return redirect('webapp:bank-details')
+
+        except Exception as e:
+            print(f"Error during bank details processing: {e}")
+            return HttpResponse("An error occurred while saving bank details.", status=500)
+
+    return render(request, 'account-details.html', {'form': form})
+
 
 
 @login_required(login_url="/")
 @user_is_support_staff
-def bankUploadViaForm(request):
-    try:
-        form = BankDetailsForm(request.POST or None)
-        if request.method == 'POST':
-            if form.is_valid():
-                if request.htmx:
-                    return render(request, 'account-details.html', {'form': form})
-                vendor = form.save(commit=False)
-                sort_code = form.cleaned_data.get('sort_code')
-                resp = requests.post(url=URL, headers=transaction_headers, json={"service": "BNK9901", "request": {}},
-                                     verify=False)
-                resp = resp.json()
-                if resp['operation_status'] == 'SUCCESS':
-                    resp = resp['response']['bankList']
-                    for resp in resp:
-                        if sort_code == resp['sortCode']:
-                            bicCode = resp['bicCode']
-                            vendor.bicCode = bicCode
-                            vendor.save()
-                            break
-                    else:
-                        bicCode = 'ZICB'
-                        vendor.bicCode = bicCode
-                        vendor.save()
-                    return redirect('webapp:bank-details')
-                else:
-                    return HttpResponse(f'Error saving bank details, Try again later', status=500)
-
-        return render(request, 'account-details.html', {'form': form})
-    except Exception as e:
-        print(e)
-
-
-def bankUploadViaFormAddAnother(request):
-    try:
-        form = BankDetailsForm(request.POST or None)
-        if request.method == 'POST':
-            if form.is_valid():
-                if request.htmx:
-                    return render(request, 'account-details.html', {'form': form})
-                vendor = form.save(commit=False)
-                sort_code = form.cleaned_data.get('sort_code')
-                resp = requests.post(url=URL, headers=transaction_headers, json={"service": "BNK9901", "request": {}},
-                                     verify=False)
-                resp = resp.json()
-                if resp['operation_status'] == 'SUCCESS':
-                    resp = resp['response']['bankList']
-                    for resp in resp:
-                        if sort_code == resp['sortCode']:
-                            bicCode = resp['bicCode']
-                            vendor.bicCode = bicCode
-                            vendor.save()
-                            break
-                    else:
-                        bicCode = 'ZICB'
-                        vendor.bicCode = bicCode
-                        vendor.save()
-                    return redirect('webapp:account-details')
-                else:
-                    return HttpResponse(f'Error saving bank details, Try again later', status=500)
-
-        return render(request, 'account-details.html', {'form': form})
-    except Exception as e:
-        print(e)
-
-
 def editBankUploadViaForm(request, acc_id):
+    """Edit bank details, refetch updated bank info from Remita, and validate via name enquiry."""
     vendor = BankDetails.objects.filter(account_no=acc_id).first()
-    form = BankDetailsForm(request.POST, instance=vendor)
-    print(vendor)
-    if request.method == 'POST':
-        if form.is_valid():
-            if request.htmx:
-                return render(request, 'account-details.html', {'form': form})
-            vendor = form.save(commit=False)
-            sort_code = form.cleaned_data.get('sort_code')
-            resp = requests.post(url=URL, headers=transaction_headers, json={"service": "BNK9901", "request": {}},
-                                 verify=False)
-            resp = resp.json()
-            if resp['operation_status'] == 'SUCCESS':
-                resp = resp['response']['bankList']
-                for resp in resp:
-                    if sort_code == resp['sortCode']:
-                        bicCode = resp['bicCode']
-                        vendor.bicCode = bicCode
-                        vendor.save()
-                        break
-                else:
-                    bicCode = 'ZICB'
-                    vendor.bicCode = bicCode
-                    vendor.save()
-                return redirect('webapp:bank-details')
+    if not vendor:
+        return HttpResponse("Bank record not found.", status=404)
 
-        else:
-            render(request, 'edit-vendor-bank.html',
-                   {'form': BankDetailsForm(instance=vendor), 'acc_id': vendor.account_no})
+    form = BankDetailsForm(request.POST or None, instance=vendor)
 
-    return render(request, 'edit-vendor-bank.html', {'form': BankDetailsForm(instance=vendor),
-                                                     'acc_id': vendor.account_no})
+    if request.method == 'POST' and form.is_valid():
+        vendor = form.save(commit=False)
+        bank_code = form.cleaned_data.get('bank_code')
+        account_no = form.cleaned_data.get('account_no')
 
+        transaction_headers = {
+            "Content-Type": "application/json; charset=utf-8",
+            "Accept": "application/json",
+            "Authorization": f"Bearer {check_and_refresh_token()}",
+        }
+
+        try:
+            # Refresh bank name based on bank code
+            resp = requests.get(
+                url="https://api-demo.systemspecsng.com/services/connect-gateway/api/v1/integration/banks",
+                headers=transaction_headers,
+                verify=False
+            )
+
+            data = resp.json()
+            bank_list = data.get("data", {}).get("banks", [])
+
+            matched_bank = next((bank for bank in bank_list if bank.get("bankCode") == bank_code), None)
+
+            if matched_bank:
+                vendor.bank_name = matched_bank.get("bankName")
+            else:
+                vendor.bank_name = None
+
+            # Perform name enquiry before saving changes
+            token = check_and_refresh_token()
+            enquiry = perform_name_enquiry(token, bank_code, account_no)
+            if not enquiry.get('success'):
+                error_msg = enquiry.get('message') or 'Account not found during name enquiry.'
+                form.add_error('account_no', error_msg)
+                messages.error(request, error_msg)
+                return render(request, 'edit-vendor-bank.html', {'form': form, 'acc_id': vendor.account_no})
+
+            vendor.account_name = enquiry.get('account_name') or vendor.account_name
+
+            vendor.save()
+            return redirect('webapp:bank-details')
+
+        except Exception as e:
+            print(f"Error during bank details update: {e}")
+            return HttpResponse("An error occurred while updating bank details.", status=500)
+
+    return render(request, 'edit-vendor-bank.html', {'form': form, 'acc_id': vendor.account_no})
 
 @login_required(login_url='/')
 @user_is_support_staff
@@ -443,7 +452,7 @@ def vendorBankDetails(request):
 def searchvendorBankDetails(request):
     if request.method == 'GET':
         vendor = request.GET['vendor']
-        data = BankDetails.objects.filter(vendor_id=vendor).all()
+        data = BankDetails.objects.filter(account_name__contains=vendor).all()
 
         paginator = Paginator(data, 10)
         page_number = request.GET.get('page')
@@ -452,481 +461,6 @@ def searchvendorBankDetails(request):
             'bank_details': page_obj,
         }
         return render(request, 'vendor-bank-details.html', context)
-
-
-@login_required(login_url="/")
-@user_is_support_staff
-def bankUploadCSV(request):
-    errors = []
-    upload_errors = {}
-    if request.method == 'POST':
-        # try:
-        file = request.FILES['csvupload']
-        df = pd.read_excel(file, dtype={'account_no': str, 'vendor_id': str, 'account_name': str,
-                                        'vendor_mobile_number': str, 'vendor_email': str, 'sort_code': str})
-        df.fillna("", inplace=True)
-        for row in df.itertuples(index=False):
-            account_no = row.account_no
-            vendor_id = row.vendor_id
-            account_name = row.account_name
-            vendor_mobile_number = row.vendor_mobile_number
-            vendor_email = row.vendor_email
-            bank_name = ''
-            branch = ''
-            sort_code = row.sort_code
-            bicCode = ''
-            resp = requests.post(url=URL, headers=transaction_headers, json={"service": "BNK9901", "request": {}},
-                                 verify=False)
-            resp = resp.json()
-            if resp['operation_status'] == 'SUCCESS':
-                resp = resp['response']['bankList']
-                found = False
-                for resp_item in resp:
-                    if str(sort_code) == resp_item['sortCode']:
-                        bank_name = resp_item['bankName']
-                        branch = resp_item['branchDesc']
-                        bicCode = resp_item['bicCode']
-                        found = True
-                        break
-                if not found:
-                    upload_errors = {
-                        'errors': [f'Sort Code associated with {account_name} is invalid']
-                    }
-                    errors.append(upload_errors)
-                else:
-                    upload_errors = {
-                        'errors': []
-                    }
-                    errors.append(upload_errors)
-            isVend = Apven.objects.using('ABSDAT').filter(vendorid=vendor_id).exists()
-            if not isVend:
-                print(upload_errors)
-                upload_errors['errors'].append(f'Vendor ID {vendor_id} is invalid')
-
-            if not errors[0]['errors']:
-                bank = BankDetails(
-                    account_no=account_no,
-                    vendor_id=vendor_id,
-                    account_name=account_name,
-                    vendor_mobile_number=vendor_mobile_number,
-                    vendor_email=vendor_email,
-                    bank_name=bank_name,
-                    sort_code=sort_code,
-                    branch=branch,
-                    bicCode=bicCode
-                )
-                bank.save()
-                return redirect('webapp:bank-details')
-            else:
-                messages.error(request, ", ".join(errors[0]['errors']))
-                return redirect('webapp:upload-bank-details')
-
-        """ except Exception as e:
-            print(e)"""
-
-
-@login_required(login_url="/")
-@user_is_support_staff
-def bankUploadCSVTemplate(request):
-    try:
-        b = io.BytesIO()
-        selected_fields = ['account_no', 'vendor_id', 'account_name', 'vendor_mobile_number', 'vendor_email',
-                           'sort_code']
-        df = pd.DataFrame(columns=selected_fields)
-        writer = pd.ExcelWriter(b, engine='openpyxl')
-        df.to_excel(writer, sheet_name='vendor bank details', index=False)
-        writer.save()
-
-        response = HttpResponse(b.getvalue(),
-                                content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-        response['Content-Disposition'] = 'attachment; filename="Report1.xlsx"'
-        return response
-
-    except Exception as e:
-        return HttpResponse(f'Error exporting data: {str(e)}', status=500)
-
-
-"""
-
-Functions to Approve and Post Transactions
-
-"""
-@login_required(login_url='/')
-@user_is_approver
-def homepage(request):
-    # Build transactions grouped by DB alias for accordion display
-    vendor_info = BankDetails.objects.all()
-    vendors = [vendor.vendor_id for vendor in vendor_info]
-
-    # Build processed invoice IDs per project to avoid cross-project collisions
-    processed_map: Dict[int, set] = {}
-    for row in ProcessedDeposits.objects.values('project_id', 'invoiceid'):
-        pid = row['project_id'] or 1
-        inv = (row['invoiceid'] or '').strip()
-        processed_map.setdefault(pid, set()).add(inv)
-    print(processed_map)
-    friendly_names = dict(Projects.objects.values_list('project_code', 'project_name'))
-    # Determine available SQL Server aliases from settings (exclude default)
-    sql_aliases = [k for k in settings.DATABASES.keys() if k != 'default']
-
-    transactions_by_db_list: List[Dict[str, Any]] = []
-
-    for alias in sql_aliases:
-        try:
-            # Resolve project id from Projects model using alias as project_code
-            try:
-                proj_id = Projects.objects.filter(project_code=alias).values_list('id', flat=True).first() or 1
-            except Exception:
-                proj_id = 1
-
-            processed_for_proj = processed_map.get(proj_id, set())
-
-            payments_qs = (
-                Appym.objects.using(alias)
-                .filter(idvend__in=vendors)
-                .filter(datermit__gt=20250101)
-                .exclude(idinvc__in=processed_for_proj)
-                .order_by('-cntbtch')
-            )
-            if not payments_qs.exists():
-                continue
-
-            batch_list = list(payments_qs.values_list('cntbtch', flat=True))
-            refs = Aptcr.objects.using(alias).filter(cntbtch__in=batch_list).values('cntbtch', 'textrmit')
-            ref_map = {r['cntbtch']: (r['textrmit'] or '').strip() for r in refs}
-
-            txns = []
-            for payment in payments_qs:
-                date = change_date(str(payment.datermit))
-                amount = round(payment.amtpaym, 2)
-                txns.append({
-                    'IDINVC': (payment.idinvc or '').strip(),
-                    'DATERMIT': date,
-                    'AMTPAYM': amount,
-                    'IDVEND': (payment.idvend or '').strip(),
-                    'REFERENCE': ref_map.get(payment.cntbtch, ''),
-                })
-            if txns:
-                # Individual pagination per accordion group
-                try:
-                    per_page = int(request.GET.get('per_page', 25))
-                except Exception:
-                    per_page = 25
-                page_key = f"page_{alias}"
-                page_num = request.GET.get(page_key, 1)
-                paginator = Paginator(txns, per_page)
-                page_obj = paginator.get_page(page_num)
-
-                transactions_by_db_list.append({
-                    'alias': alias,
-                    'display_name': friendly_names.get(alias, alias),
-                    'project_id': proj_id,
-                    'transactions': list(page_obj.object_list),
-                    'total_count': len(txns),
-                    'page_obj': page_obj,
-                    'page_key': page_key,
-                })
-        except Exception as e:
-            # Skip problematic aliases but continue others
-            print(f"Error fetching from {alias}: {e}")
-            continue
-
-    context = {
-        'transactions_by_db': transactions_by_db_list,
-        'vendor_info': vendor_info,
-    }
-
-    return render(request, 'homepage.html', context)
-
-@login_required(login_url='/')
-@user_is_approver
-def transaction_history(request):
-    data = ProcessedDeposits.objects.exclude(status=2).order_by('-timestamp')
-    paginator = Paginator(data, 20)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
-    all_data = data.filter(timestamp__month__in=range(1, 13))
-    grouped_data = groupby(all_data, key=attrgetter('timestamp.month'))
-    monthly_data = {month: 0 for month in range(1, 13)}
-    for month, data in grouped_data:
-        monthly_data[month] = len(list(data))
-    monthly_data = [{'month': datetime.date(1900, month, 1).strftime('%B'), 'data': count} for month, count in
-                    monthly_data.items()]
-    end_date = datetime.date.today()
-    start_date = end_date - datetime.timedelta(days=7)
-
-    date_range = [end_date - datetime.timedelta(days=x) for x in range(7)]
-    processed_deposits = ProcessedDeposits.objects.filter(timestamp__date__range=(start_date, end_date))
-    processed_deposits = processed_deposits.annotate(trans_date=TruncDate('timestamp')).values('trans_date').annotate(
-        count=Count('trans_date'))
-    date_dict = {deposit['trans_date'].strftime('%Y-%m-%d'): deposit['count'] for deposit in processed_deposits}
-    date_list = [date.strftime('%Y-%m-%d') for date in date_range]
-    count_list = [date_dict.get(date.strftime('%Y-%m-%d'), 0) for date in date_range]
-    context = {'transaction_info': page_obj,
-               'date_list': date_list,
-               'count_list': count_list,
-               'data_by_month': monthly_data,
-               }
-    print(context)
-    return render(request, "transaction-history.html", context)
-
-
-def transaction_history_xls(request):
-    try:
-        if request.method == 'GET':
-            start_date_raw = request.GET.get('start_date')
-            end_date_raw = request.GET.get('end_date')
-            start_date = format_date(start_date_raw)
-            end_date = format_date(end_date_raw)
-            print(request.GET.get('start_date'), request.GET.get('end_date'))
-            values = ProcessedDeposits.objects.filter(timestamp__range=(start_date, end_date)).exclude(status=2).values(
-                'amount', 'invoiceid','timestamp', 'transaction_date', 'transaction_type',
-                'vendorid', 'vendorname')
-
-            df = pd.DataFrame.from_records(values)
-            if not df.empty:
-                df['timestamp'] = df['timestamp'].dt.strftime('%Y-%m-%d')
-            # Add the title and column names
-            title_row = ['Transaction History']
-            column_names = ['Amount', 'Sage Invoice ID', 'Posting Date/Time', 'Transaction Date',
-                            'Transaction Type', 'Vendor ID', 'Vendor Name']
-            data_rows = [column_names] + df.values.tolist()
-            print(data_rows)
-            data_rows.insert(0, title_row)
-
-            # Create a temporary file path
-            temp_file_path = os.path.join(tempfile.gettempdir(), 'transaction_history.xlsx')
-
-            # Write the DataFrame to the Excel file
-            with pd.ExcelWriter(temp_file_path, engine='xlsxwriter', options={'remove_timezone': True}) as writer:
-                workbook = writer.book
-                worksheet = workbook.add_worksheet('Transaction History')
-                for row_num, row_data in enumerate(data_rows):
-                    for col_num, cell_data in enumerate(row_data):
-                        worksheet.write(row_num, col_num, cell_data)
-
-            # Read the Excel file content
-            with open(temp_file_path, 'rb') as file:
-                excel_data = file.read()
-
-            # Delete the temporary file
-            # os.remove(temp_file_path)
-
-            response = HttpResponse(excel_data, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-            response['Content-Disposition'] = f'attachment; filename=Transaction_History_{start_date_raw}_{end_date_raw}.xlsx'
-            return response
-        else:
-            return HttpResponse('Get Requests Only')
-    except Exception as e:
-        print(e)
-        return HttpResponse(f'The error {e} occurred while processing your request')
-
-def get_search_results(request):
-    """ Get search results based on query parameters """
-
-    if request.method != 'GET':
-        return JsonResponse({'message': 'Only GET requests are allowed'}, status=400)
-
-    try:
-        vendor_info = BankDetails.objects.values('vendor_id', 'bank_code',
-                                                 'account_no',
-                                                 'account_name').all()
-
-        vendors = [vendor['vendor_id'] for vendor in vendor_info]
-
-        field_mapping_vendor = {
-            'account_number': 'account_no__icontains',
-            'bank_code': 'bank_code__icontains',
-            'bank_name': 'bank_name__icontains',
-
-        }
-
-        search_params = request.GET.get('search_params')
-        field_option = request.GET.get('filter_options')
-
-        if field_option in ['vendor_id', 'date', 'amount', 'invoice_id']:
-            qs = Appym.objects.using('ABSDAT').filter(idvend__in=vendors)
-            if field_option == 'vendor_id' and search_params:
-                qs = qs.filter(idvend__icontains=search_params)
-            elif field_option == 'invoice_id' and search_params:
-                qs = qs.filter(idinvc__icontains=search_params)
-            elif field_option == 'amount' and search_params:
-                try:
-                    amt = Decimal(str(search_params))
-                    qs = qs.filter(amtpaym=amt)
-                except Exception:
-                    qs = qs.none()
-            elif field_option == 'date' and search_params:
-                if str(search_params).isdigit():
-                    qs = qs.filter(datermit=int(search_params))
-                else:
-                    qs = qs.none()
-
-            trans_infor_raw = []
-            batch_list = [batch.cntbtch for batch in qs]
-            aptcr_qs = Aptcr.objects.using('ABSDAT').filter(cntbtch__in=batch_list)
-
-            for payment, record in zip(qs, aptcr_qs):
-                transactions = {
-                    'IDINVC': (payment.idinvc).strip(),
-                    'DATERMIT': payment.datermit,
-                    'AMTPAYM': payment.amtpaym,
-                    'IDVEND': (payment.idvend).strip(),
-                    'REFERENCE': (record.textrmit).strip()
-
-                }
-                trans_infor_raw.append(transactions)
-            paginator = Paginator(trans_infor_raw, 20)
-            page_number = request.GET.get('page')
-            page_obj = paginator.get_page(page_number)
-            context = {
-                'transaction_info': page_obj,
-                'vendor_info': vendor_info,
-            }
-
-            return render(request, 'homepage.html', context)
-
-        elif field_option in field_mapping_vendor and search_params:
-            vendor_info = BankDetails.objects.filter(**{field_mapping_vendor[field_option]: search_params}).values(
-                'vendor_id', 'sort_code', 'account_no', 'account_name').all()
-            vendor_ids = [vendor['vendor_id'] for vendor in vendor_info]
-            trans_infor_raw = []
-            transaction_info = Appym.objects.using('ABSDAT').filter(idvend__in=vendor_ids)
-
-            batch_list = [batch.cntbtch for batch in transaction_info]
-
-            aptcr_qs = Aptcr.objects.filter(cntbtch__in=batch_list)
-
-            for payment, record in zip(transaction_info, aptcr_qs):
-                transactions = {
-                    'IDINVC': (payment.idinvc).strip(),
-                    'DATERMIT': payment.datermit,
-                    'AMTPAYM': payment.amtpaym,
-                    'IDVEND': (payment.idvend).strip(),
-                    'REFERENCE': (record.textrmit).strip()
-
-                }
-                trans_infor_raw.append(transactions)
-
-            paginator = Paginator(trans_infor_raw, 20)
-            page_number = request.GET.get('page')
-            page_obj = paginator.get_page(page_number)
-            context = {
-                'transaction_info': page_obj,
-                'vendor_info': vendor_info,
-                'page_number': page_number
-            }
-
-            return render(request, 'homepage.html', context)
-
-    except Exception as e:
-        return JsonResponse({'message': f'An error occurred while processing your request {e}'}, status=500)
-
-def get_history_search_results(request):
-    search_params = request.GET.get('search_params')
-    field_option = request.GET.get('filter_options')
-    field_mapping_vendor = {
-        'amount': 'amount__icontains',
-        'invoice_id': 'invoice_id__iexact',
-
-    }
-    if field_option in field_mapping_vendor and search_params:
-        data = BankDetails.objects.filter(**{field_mapping_vendor[field_option]: search_params}).values(
-        'vendor_id', 'sort_code', 'account_no', 'account_name')
-        paginator = Paginator(data, 20)
-        page_number = request.GET.get('page')
-        page_obj = paginator.get_page(page_number)
-        all_data = data.filter(timestamp__month__in=range(1, 13))
-        grouped_data = groupby(all_data, key=attrgetter('timestamp.month'))
-        monthly_data = {month: 0 for month in range(1, 13)}
-        for month, data in grouped_data:
-            monthly_data[month] = len(list(data))
-        monthly_data = [{'month': datetime.date(1900, month, 1).strftime('%B'), 'data': count} for month, count in
-                        monthly_data.items()]
-        end_date = datetime.date.today()
-        start_date = end_date - datetime.timedelta(days=7)
-
-        date_range = [end_date - datetime.timedelta(days=x) for x in range(7)]
-        processed_deposits = ProcessedDeposits.objects.filter(timestamp__date__range=(start_date, end_date))
-        processed_deposits = processed_deposits.annotate(trans_date=TruncDate('timestamp')).values(
-            'trans_date').annotate(
-            count=Count('trans_date'))
-        date_dict = {deposit['trans_date'].strftime('%Y-%m-%d'): deposit['count'] for deposit in processed_deposits}
-        date_list = [date.strftime('%Y-%m-%d') for date in date_range]
-        count_list = [date_dict.get(date.strftime('%Y-%m-%d'), 0) for date in date_range]
-        context = {
-            'transaction_info': page_obj,
-            'page_number': page_number,
-            'date_list': date_list,
-            'count_list': count_list,
-            'data_by_month': monthly_data,
-
-        }
-
-        return render(request, 'transaction-history.html', context)
-
-def removetransaction(request, invoice_id, project_id):
-        try:
-            project = Projects.objects.get(id=project_id)
-        except Projects.DoesNotExist:
-            # Fallback to default project id=1 if not found
-            project = Projects.objects.filter(id=1).first()
-        processed = ProcessedDeposits(
-            project=project,
-            amount=0,
-            transaction_date='',
-            vendorid='',
-            invoiceid=invoice_id,
-            vendorname='',
-            status=2,  # mark as removed/failed so it won’t be processed
-            processed_by=request.user.username
-        )
-        processed.save()
-        return redirect('webapp:homepage')
-
-
-def forgotPassword(request):
-    return render(request, 'forgot-password.html')
-
-
-def vendor_account_details(request):
-    account_name = request.GET['account_name']
-    data = BankDetails.objects.filter(account_name__icontains=account_name).values('account_no', 'bank_code',
-                                                                                   'bank_name')
-    return JsonResponse({'account_details': list(data)}, status=200)
-
-
-def change_date(date_str):
-    date_obj = datetime.datetime.strptime(date_str, "%Y%m%d")
-    formatted_date = date_obj.strftime("%d-%m-%Y")
-    return formatted_date
-
-
-
-def checkAccNumber(request):
-    acc = request.GET.get('acc_name')
-    print(acc)
-    """account_number = BankDetails.objects.filter(account_name__icontains=acc).values('account_no')
-    acc_no = [acc_no for acc_no in account_number]
-    print(acc_no)"""
-    data = {
-        "service": "ZB0627",
-        "request": {
-            "accountNos": f"{acc}"
-        }
-    }
-    response = requests.post(url=URL, headers={"Content-Type": "application/json; charset=utf-8", "authkey": API_KEY},
-                             json=data, verify=False)
-    response = response.json()
-    print(response)
-    account_list = response['response']['accountList']
-    return JsonResponse({'resp': list(account_list)})
-
-
-def generate_unique_reference():
-    """Generate a unique reference for bulk transactions"""
-    unique_id = str(uuid.uuid4().int)[:5]
-    return f"{unique_id}"
 
 
 def perform_name_enquiry(token, bank_code, account_number):
@@ -981,51 +515,441 @@ def perform_name_enquiry(token, bank_code, account_number):
         }
 
 
-def check_account_balance(token, account_number, bank_code):
-    """
-    Check account balance before initiating transfer
+"""
 
-    Args:
-        token: Bearer authentication token
-        account_number: Source account number
-        bank_code: Source bank code
+Functions to Approve and Post Transactions
 
-    Returns:
-        dict: Response containing balance information
-    """
-    url = "https://demo.remita.net/remita/exapp/api/v1/send/api/rpgsvc/v3/rpg/account/balance"
+"""
+@login_required(login_url='/')
+@user_is_approver
+def homepage(request):
+    # Build transactions grouped by DB alias for accordion display
+    vendor_info = BankDetails.objects.all()
+    vendors = [vendor.vendor_id for vendor in vendor_info]
 
-    headers = {
-        'Authorization': f'Bearer {token}',
-        'Content-Type': 'application/json'
+    # Build processed invoice IDs per project to avoid cross-project collisions
+    processed_map: Dict[int, set] = {}
+    for row in ProcessedDeposits.objects.values('project_id', 'invoiceid'):
+        pid = row['project_id'] or 1
+        inv = (row['invoiceid'] or '').strip()
+        processed_map.setdefault(pid, set()).add(inv)
+    friendly_names = dict(Projects.objects.values_list('project_code', 'project_name'))
+    # Determine available SQL Server aliases from settings (exclude default)
+    sql_aliases = [k for k in settings.DATABASES.keys() if k != 'default']
+
+    transactions_by_db_list: List[Dict[str, Any]] = []
+
+    for alias in sql_aliases:
+        try:
+            # Resolve project id from Projects model using alias as project_code
+            try:
+                proj_id = Projects.objects.filter(project_code=alias).values_list('id', flat=True).first() or 1
+            except Exception:
+                proj_id = 1
+
+            processed_for_proj = processed_map.get(proj_id, set())
+
+            payments_qs = (
+                Appym.objects.using(alias)
+                .filter(datermit__gt=20250501)
+                .exclude(idinvc__in=processed_for_proj)
+                .order_by('-cntbtch')
+            )
+            if not payments_qs.exists():
+                continue
+
+            batch_list = list(payments_qs.values_list('cntbtch', flat=True))
+            refs = Aptcr.objects.using(alias).filter(cntbtch__in=batch_list).values('cntbtch','cntentr', 'textrmit')
+            ref_map = {f'{r['cntbtch']}-{r['cntentr']}': (r['textrmit'] or '').strip() for r in refs}
+
+            txns = []
+            for payment in payments_qs:
+                key = f'{str(payment.cntbtch)+'-'+str(payment.cntitem)}'
+                print(key)
+                date = change_date(str(payment.datermit))
+                amount = round(payment.amtpaym, 2)
+                txns.append({
+                    'IDINVC': (payment.idinvc or '').strip(),
+                    'DATERMIT': date,
+                    'AMTPAYM': amount,
+                    'IDVEND': (payment.textpayor or '').strip().upper(),
+                    'REFERENCE': ref_map.get(key, ''),
+                })
+            if txns:
+                # Individual pagination per accordion group
+                try:
+                    per_page = int(request.GET.get('per_page', 25))
+                except Exception:
+                    per_page = 25
+                page_key = f"page_{alias}"
+                page_num = request.GET.get(page_key, 1)
+                paginator = Paginator(txns, per_page)
+                page_obj = paginator.get_page(page_num)
+
+                transactions_by_db_list.append({
+                    'alias': alias,
+                    'display_name': friendly_names.get(alias, alias),
+                    'project_id': proj_id,
+                    'transactions': list(page_obj.object_list),
+                    'total_count': len(txns),
+                    'page_obj': page_obj,
+                    'page_key': page_key,
+                })
+        except Exception as e:
+            # Skip problematic aliases but continue others
+            print(f"Error fetching from {alias}: {e}")
+            continue
+
+    context = {
+        'transactions_by_db': transactions_by_db_list,
+        'vendor_info': vendor_info,
     }
 
-    payload = {
-        "sourceAccount": account_number,
-        "sourceBankCode": bank_code,
-        "transRef": generate_unique_reference()
+    return render(request, 'homepage.html', context)
+
+@login_required(login_url='/')
+@user_is_approver
+@login_required(login_url='/')
+@user_is_approver
+def transaction_history(request):
+    data = ProcessedDeposits.objects.exclude(status=2).order_by('-timestamp')
+    paginator = Paginator(data, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    all_data = data.filter(timestamp__month__in=range(1, 13))
+    grouped_data = groupby(all_data, key=attrgetter('timestamp.month'))
+    monthly_data = {month: 0 for month in range(1, 13)}
+    for month, data in grouped_data:
+        monthly_data[month] = len(list(data))
+    monthly_data = [{'month': datetime.date(1900, month, 1).strftime('%B'), 'data': count} for month, count in
+                    monthly_data.items()]
+    end_date = datetime.date.today()
+    start_date = end_date - datetime.timedelta(days=7)
+
+    date_range = [end_date - datetime.timedelta(days=x) for x in range(7)]
+    processed_deposits = ProcessedDeposits.objects.filter(timestamp__date__range=(start_date, end_date))
+    processed_deposits = processed_deposits.annotate(trans_date=TruncDate('timestamp')).values('trans_date').annotate(
+        count=Count('trans_date'))
+    date_dict = {deposit['trans_date'].strftime('%Y-%m-%d'): deposit['count'] for deposit in processed_deposits}
+    date_list = [date.strftime('%Y-%m-%d') for date in date_range]
+    count_list = [date_dict.get(date.strftime('%Y-%m-%d'), 0) for date in date_range]
+
+    # Build query string excluding page parameter for paginator links
+    qs_mut = request.GET.copy()
+    qs_mut.pop('page', None)
+    query_string = qs_mut.urlencode()
+
+    context = {
+        'transaction_info': page_obj,
+        'date_list': date_list,
+        'count_list': count_list,
+        'data_by_month': monthly_data,
+        'query_string': query_string,
+        'active_filters': {
+            'filter_options': '',
+            'search_params': ''
+        },
+        'has_active_filters': False  # Add this line
     }
+    return render(request, "transaction-history.html", context)
+
+
+def transaction_history_xls(request):
+    try:
+        if request.method == 'GET':
+            start_date_raw = request.GET.get('start_date')
+            end_date_raw = request.GET.get('end_date')
+            start_date = format_date(start_date_raw)
+            end_date = format_date(end_date_raw)
+            values = ProcessedDeposits.objects.filter(timestamp__range=(start_date, end_date)).exclude(status=2).values(
+                'amount', 'invoiceid','timestamp', 'transaction_date', 'transaction_type',
+                'vendorid', 'vendorname')
+
+            df = pd.DataFrame.from_records(values)
+            if not df.empty:
+                df['timestamp'] = df['timestamp'].dt.strftime('%Y-%m-%d')
+            # Add the title and column names
+            title_row = ['Transaction History']
+            column_names = ['Amount', 'Sage Invoice ID', 'Posting Date/Time', 'Transaction Date',
+                            'Transaction Type', 'Vendor ID', 'Vendor Name']
+            data_rows = [column_names] + df.values.tolist()
+            data_rows.insert(0, title_row)
+
+            # Create a temporary file path
+            temp_file_path = os.path.join(tempfile.gettempdir(), 'transaction_history.xlsx')
+
+            # Write the DataFrame to the Excel file
+            with pd.ExcelWriter(temp_file_path, engine='xlsxwriter', options={'remove_timezone': True}) as writer:
+                workbook = writer.book
+                worksheet = workbook.add_worksheet('Transaction History')
+                for row_num, row_data in enumerate(data_rows):
+                    for col_num, cell_data in enumerate(row_data):
+                        worksheet.write(row_num, col_num, cell_data)
+
+            # Read the Excel file content
+            with open(temp_file_path, 'rb') as file:
+                excel_data = file.read()
+
+            # Delete the temporary file
+            # os.remove(temp_file_path)
+
+            response = HttpResponse(excel_data, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            response['Content-Disposition'] = f'attachment; filename=Transaction_History_{start_date_raw}_{end_date_raw}.xlsx'
+            return response
+        else:
+            return HttpResponse('Get Requests Only')
+    except Exception as e:
+        print(e)
+        return HttpResponse(f'The error {e} occurred while processing your request')
+
+def get_search_results(request):
+    """ Get search results for homepage accordion, preserving grouped structure. """
+    if request.method != 'GET':
+        return JsonResponse({'message': 'Only GET requests are allowed'}, status=400)
 
     try:
-        response = requests.post(url, headers=headers, json=payload, timeout=30)
-        response_data = response.json()
+        vendor_info = BankDetails.objects.all()
+        allowed_vendor_ids = [v.vendor_id for v in vendor_info]
 
-        if response.status_code == 200 and response_data.get('status') == '00':
-            return {
-                'success': True,
-                'data': response_data.get('data', {}),
-                'available_balance': float(response_data.get('data', {}).get('availableBalance', 0))
-            }
-        else:
-            return {
-                'success': False,
-                'message': response_data.get('message', 'Balance check failed')
-            }
-    except Exception as e:
-        return {
-            'success': False,
-            'message': f'Error checking balance: {str(e)}'
+        search_params = (request.GET.get('search_params') or '').strip()
+        field_option = (request.GET.get('filter_options') or '').strip()
+
+        # Determine available SQL Server aliases from settings (exclude default)
+        friendly_names = dict(Projects.objects.values_list('project_code', 'project_name'))
+        sql_aliases = [k for k in settings.DATABASES.keys() if k != 'default']
+
+        transactions_by_db_list: List[Dict[str, Any]] = []
+
+        for alias in sql_aliases:
+            try:
+                proj_id = Projects.objects.filter(project_code=alias).values_list('id', flat=True).first() or 1
+
+                payments_qs = (
+                    Appym.objects.using(alias)
+                    .filter(idvend__in=allowed_vendor_ids)
+                    .order_by('-cntbtch')
+                )
+
+                # Apply filter
+                if field_option and search_params:
+                    if field_option == 'vendor_id':
+                        payments_qs = payments_qs.filter(idvend__icontains=search_params)
+                    elif field_option == 'invoice_id':
+                        payments_qs = payments_qs.filter(idinvc__icontains=search_params)
+                    elif field_option == 'amount':
+                        try:
+                            amt = Decimal(str(search_params))
+                            payments_qs = payments_qs.filter(amtpaym=amt)
+                        except Exception:
+                            payments_qs = payments_qs.none()
+                    elif field_option == 'date':
+                        # datermit is numeric YYYYMMDD
+                        if search_params.isdigit():
+                            payments_qs = payments_qs.filter(datermit=int(search_params))
+                        else:
+                            payments_qs = payments_qs.none()
+
+                if not payments_qs.exists():
+                    continue
+
+                batch_list = list(payments_qs.values_list('cntbtch', flat=True))
+                refs = Aptcr.objects.using(alias).filter(cntbtch__in=batch_list).values('cntbtch','cntentr','textrmit')
+                ref_map = {f"{r['cntbtch']}-{r['cntentr']}": (r['textrmit'] or '').strip() for r in refs}
+
+                txns = []
+                for payment in payments_qs:
+                    key = f"{str(payment.cntbtch)}-{str(payment.cntitem)}"
+                    date_fmt = change_date(str(payment.datermit)) if str(payment.datermit).isdigit() else payment.datermit
+                    amount = round(payment.amtpaym, 2)
+                    txns.append({
+                        'IDINVC': (payment.idinvc or '').strip(),
+                        'DATERMIT': date_fmt,
+                        'AMTPAYM': amount,
+                        'IDVEND': (payment.textpayor or '').strip().upper(),
+                        'REFERENCE': ref_map.get(key, ''),
+                    })
+
+                if txns:
+                    try:
+                        per_page = int(request.GET.get('per_page', 25))
+                    except Exception:
+                        per_page = 25
+                    page_key = f"page_{alias}"
+                    page_num = request.GET.get(page_key, 1)
+                    paginator = Paginator(txns, per_page)
+                    page_obj = paginator.get_page(page_num)
+
+                    transactions_by_db_list.append({
+                        'alias': alias,
+                        'display_name': friendly_names.get(alias, alias),
+                        'project_id': proj_id,
+                        'transactions': list(page_obj.object_list),
+                        'total_count': len(txns),
+                        'page_obj': page_obj,
+                        'page_key': page_key,
+                    })
+            except Exception as e:
+                print(f"Error fetching from {alias} (filtered): {e}")
+                continue
+
+        context = {
+            'transactions_by_db': transactions_by_db_list,
+            'vendor_info': vendor_info,
         }
+        return render(request, 'homepage.html', context)
+
+    except Exception as e:
+        return JsonResponse({'message': f'An error occurred while processing your request {e}'}, status=500)
+
+def get_history_search_results(request):
+    """Filter transaction history by provided criteria and render the history page.
+    Supported fields: invoice_id, vendor_id, vendor_name, amount, status, batch, processed_by, project.
+    Query params:
+      - filter_options: one of [invoice_id, vendor_id, vendor_name, amount, status, batch, processed_by, project]
+      - search_params: value to search for
+    """
+    search_params = (request.GET.get('search_params') or '').strip()
+    field_option = (request.GET.get('filter_options') or '').strip()
+
+    qs = ProcessedDeposits.objects.exclude(status=2)
+
+
+    # Field-based filters
+    if field_option and search_params:
+        if field_option == 'invoice_id':
+            qs = qs.filter(invoiceid__icontains=search_params)
+        elif field_option == 'vendor_id':
+            qs = qs.filter(vendorid__icontains=search_params)
+        elif field_option == 'vendor_name':
+            qs = qs.filter(vendorname__icontains=search_params)
+        elif field_option == 'amount':
+            qs = qs.filter(amount__icontains=search_params)
+        elif field_option == 'status':
+            status_map = {
+                'pending': 0, '0': 0,
+                'success': 1, '1': 1,
+                'failed': 2, '2': 2,
+            }
+            code = status_map.get(search_params.lower())
+            if code is not None:
+                qs = qs.filter(status=code)
+            else:
+                qs = qs.none()
+        elif field_option == 'batch':
+            qs = qs.filter(batch_identifier__icontains=search_params)
+        elif field_option == 'processed_by':
+            qs = qs.filter(processed_by__icontains=search_params)
+        elif field_option == 'project':
+            # allow by name or id
+            if search_params.isdigit():
+                qs = qs.filter(project_id=int(search_params))
+            else:
+                qs = qs.filter(project__project_name__icontains=search_params)
+
+    qs = qs.order_by('-timestamp')
+
+    paginator = Paginator(qs, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    # Graphs (use the current filtered queryset within last 7 days for counts)
+    end_date = datetime.date.today()
+    start_date = end_date - datetime.timedelta(days=7)
+    date_range = [end_date - datetime.timedelta(days=x) for x in range(7)]
+
+    processed_deposits = ProcessedDeposits.objects.filter(timestamp__date__range=(start_date, end_date))
+    processed_deposits = processed_deposits.annotate(trans_date=TruncDate('timestamp')).values('trans_date').annotate(count=Count('trans_date'))
+    date_dict = {deposit['trans_date'].strftime('%Y-%m-%d'): deposit['count'] for deposit in processed_deposits}
+    date_list = [date.strftime('%Y-%m-%d') for date in date_range]
+    count_list = [date_dict.get(date.strftime('%Y-%m-%d'), 0) for date in date_range]
+
+    # Build query string excluding page and legacy date params for paginator
+    qs_mut = request.GET.copy()
+    qs_mut.pop('page', None)
+    qs_mut.pop('start_date', None)
+    qs_mut.pop('end_date', None)
+    query_string = qs_mut.urlencode()
+
+    context = {
+        'transaction_info': page_obj,
+        'page_number': page_number,
+        'date_list': date_list,
+        'count_list': count_list,
+        'data_by_month': [
+            {'month': datetime.date(1900, m, 1).strftime('%B'), 'data': ProcessedDeposits.objects.filter(timestamp__month=m).exclude(status=2).count()}
+            for m in range(1, 13)
+        ],
+        'active_filters': {
+            'filter_options': field_option,
+            'search_params': search_params,
+        },
+        'query_string': query_string,
+        'has_active_filters': bool(search_params),
+    }
+
+    return render(request, 'transaction-history.html', context)
+
+def removetransaction(request, invoice_id, project_id):
+        try:
+            project = Projects.objects.get(id=project_id)
+        except Projects.DoesNotExist:
+            # Fallback to default project id=1 if not found
+            project = Projects.objects.filter(id=1).first()
+        processed = ProcessedDeposits(
+            project=project,
+            amount=0,
+            transaction_date='',
+            vendorid='',
+            invoiceid=invoice_id,
+            vendorname='',
+            status=2,  # mark as removed/failed so it won’t be processed
+            processed_by=request.user.username
+        )
+        processed.save()
+        return redirect('webapp:homepage')
+
+
+
+def vendor_account_details(request):
+    account_name = request.GET['account_name']
+    data = BankDetails.objects.filter(account_name__icontains=account_name).values('account_no', 'bank_code',
+                                                                                   'bank_name')
+    return JsonResponse({'account_details': list(data)}, status=200)
+
+
+def change_date(date_str):
+    date_obj = datetime.datetime.strptime(date_str, "%Y%m%d")
+    formatted_date = date_obj.strftime("%d-%m-%Y")
+    return formatted_date
+
+
+
+def checkAccNumber(request):
+    acc = request.GET.get('acc_name')
+    print(acc)
+    """account_number = BankDetails.objects.filter(account_name__icontains=acc).values('account_no')
+    acc_no = [acc_no for acc_no in account_number]
+    print(acc_no)"""
+    data = {
+        "service": "ZB0627",
+        "request": {
+            "accountNos": f"{acc}"
+        }
+    }
+    response = requests.post(headers={"Content-Type": "application/json; charset=utf-8"},
+                             json=data, verify=False)
+    response = response.json()
+    print(response)
+    account_list = response['response']['accountList']
+    return JsonResponse({'resp': list(account_list)})
+
+
+def generate_unique_reference():
+    """Generate a unique reference for bulk transactions"""
+    unique_id = str(uuid.uuid4().int)[:5]
+    return f"{unique_id}"
+
+
 
 
 def initiate_bulk_payment(token, source_account_details, transactions, batch_ref=None):
@@ -1059,7 +983,7 @@ def initiate_bulk_payment(token, source_account_details, transactions, batch_ref
     }
 
     # Use provided batch reference if available, otherwise generate
-    batch_ref = batch_ref or generate_unique_reference()
+    batch_ref = batch_ref
 
     # Calculate total amount
     total_amount = sum(float(t['amount']) for t in transactions)
@@ -1068,7 +992,7 @@ def initiate_bulk_payment(token, source_account_details, transactions, batch_ref
     transaction_items = []
     for idx, trans in enumerate(transactions, 1):
         # Prefer client-provided transaction reference; otherwise generate a unique one
-        trans_ref = trans.get('transaction_ref') or generate_unique_reference()
+        trans_ref = trans.get('transaction_ref')
         # Build destination narration and include invoice id
         base_narr = trans.get('remarks', 'Bulk Transfer')
         inv_id = trans.get('invoice_id')
@@ -1214,13 +1138,14 @@ def check_bulk_payment_details(token, batch_ref):
             'message': f'Error checking details: {str(e)}'
         }
 
-def create_entry(project_id, batch_ref, transaction, processed_by,status):
+def create_entry(project_id, batch_ref, transaction, processed_by, status):
     project = Projects.objects.get(id=project_id)
 
     deposit = ProcessedDeposits.objects.create(
         project=project,
         batch_identifier=batch_ref,
         invoiceid=transaction.get('invoice_id', ''),
+        transaction_ref=transaction.get('transaction_ref'),
         vendorid=transaction.get('vendor_id', ''),
         vendorname=transaction.get('account_name', ''),
         transaction_date=transaction.get('date', ''),
@@ -1444,38 +1369,97 @@ def post_transactions(request):
 
 def check_transaction_status(request, batch_ref):
     """
-    Django view to check status of bulk payment
+    Check status for a previous bulk payment batch and return ONLY the minimal schema:
+    {
+        "status": "00" | <code>,
+        "message": <string>,
+        "meta": null,
+        "links": null,
+        "code": null,
+        "data": {
+            "transactions": [{"paymentIdentifier": str, "status": str}, ...],
+            "pagination": { ... } | null
+        }
+    }
     """
-    if request.method == 'GET':
+    if request.method != 'GET':
+        return JsonResponse({'message': 'Only GET requests allowed'}, status=400)
+
+    try:
+        # Acquire/refresh token
+        secret_key = check_and_refresh_token(request)
+        if not secret_key:
+            # Follow the minimal schema even for auth errors
+            return JsonResponse({
+                'status': '401',
+                'message': 'Authentication required',
+                'meta': None,
+                'links': None,
+                'code': None,
+                'data': {
+                    'transactions': [],
+                    'pagination': None
+                }
+            }, status=401)
+
+        # Fetch detailed status from provider
+        details = check_bulk_payment_details(secret_key, batch_ref)
+
+        # Extract transactions (only the required fields)
+        transactions = []
         try:
-            # Get valid token
-            secret_key = check_and_refresh_token(request)
+            for t in details.get('transactions') or ((details.get('data') or {}).get('transactions') or []):
+                transactions.append({
+                    'paymentIdentifier': t.get('paymentIdentifier'),
+                    'status': t.get('status')
+                })
+        except Exception:
+            transactions = []
 
-            if not secret_key:
-                return JsonResponse({
-                    'success': False,
-                    'message': 'Authentication required'
-                }, status=401)
+        # Extract pagination if present
+        pagination = None
+        try:
+            pagination = (details.get('data') or {}).get('pagination')
+        except Exception:
+            pagination = None
 
-            # Get summary status
-            summary = check_bulk_payment_status_summary(secret_key, batch_ref)
+        # Determine top-level status/message
+        raw = details.get('raw_response') or {}
+        top_status = None
+        top_message = None
+        if isinstance(raw, dict):
+            top_status = raw.get('status')
+            top_message = raw.get('message')
+        if not top_status:
+            top_status = details.get('status') or ('00' if details.get('success') else '99')
+        if not top_message:
+            top_message = details.get('message') or ('Approved or completed successfully' if details.get('success') else 'Details check failed')
 
-            # Get detailed status
-            details = check_bulk_payment_details(secret_key, batch_ref)
+        # Return exactly the requested schema
+        return JsonResponse({
+            'status': top_status,
+            'message': top_message,
+            'meta': None,
+            'links': None,
+            'code': None,
+            'data': {
+                'transactions': transactions,
+                'pagination': pagination
+            }
+        })
 
-            return JsonResponse({
-                'success': True,
-                'summary': summary,
-                'details': details
-            })
-
-        except Exception as e:
-            return JsonResponse({
-                'success': False,
-                'message': str(e)
-            }, status=500)
-
-    return JsonResponse({'message': 'Only GET requests allowed'}, status=400)
+    except Exception as e:
+        return JsonResponse({
+            'status': '99',
+            'message': str(e),
+            'meta': None,
+            'links': None,
+            'code': None,
+            'data': {
+                'transactions': [],
+                'pagination': None
+            }
+        }, status=500)
 
 
 def live_search_bank_details(request):
@@ -1611,3 +1595,242 @@ def reject_registration(request, token: str):
         except Exception:
             pass
     return render(request, 'registration_result.html', {'title': 'User rejected', 'message': f'User {username} has been rejected and removed.'})
+
+
+
+@require_GET
+def transaction_history_json(request):
+    """Return transaction history as JSON within a date range for client-side PDF export."""
+    start_date_raw = request.GET.get('start_date')
+    end_date_raw = request.GET.get('end_date')
+    if not start_date_raw or not end_date_raw:
+        return JsonResponse({'success': False, 'message': 'start_date and end_date are required'}, status=400)
+    try:
+        start_date = format_date(start_date_raw)
+        end_date = format_date(end_date_raw)
+        qs = ProcessedDeposits.objects.filter(timestamp__range=(start_date, end_date)).exclude(status=2)
+        values = qs.values(
+            'amount', 'invoiceid', 'timestamp', 'transaction_date', 'transaction_ref',
+            'vendorid', 'vendorname', 'batch_identifier', 'status', 'processed_by', 'project__project_name'
+        )
+        rows = list(values)
+        # Normalize timestamp to str
+        for r in rows:
+            ts = r.get('timestamp')
+            try:
+                r['timestamp'] = ts.strftime('%Y-%m-%d %H:%M:%S') if ts else ''
+            except Exception:
+                r['timestamp'] = str(ts) if ts else ''
+        return JsonResponse({'success': True, 'results': rows})
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': f'Error: {e}'}, status=500)
+
+
+
+def export_history_filtered(request):
+    """Export filtered transaction history as an Excel file (XLSX).
+    Reuses the same filter semantics as get_history_search_results.
+    Accepts query params:
+      - filter_options
+      - search_params
+      - start_date, end_date (dd-mm-YYYY)
+    """
+    try:
+        if request.method != 'GET':
+            return HttpResponse('Only GET requests are allowed', status=405)
+
+        search_params = (request.GET.get('search_params') or '').strip()
+        field_option = (request.GET.get('filter_options') or '').strip()
+        start_date_raw = request.GET.get('start_date')
+        end_date_raw = request.GET.get('end_date')
+
+        qs = ProcessedDeposits.objects.exclude(status=2)
+
+        # Date range filter
+        try:
+            if start_date_raw and end_date_raw:
+                start_date = format_date(start_date_raw)
+                end_date = format_date(end_date_raw)
+                qs = qs.filter(timestamp__range=(start_date, end_date))
+        except Exception:
+            pass
+
+        # Field-based filters
+        if field_option and search_params:
+            if field_option == 'invoice_id':
+                qs = qs.filter(invoiceid__icontains=search_params)
+            elif field_option == 'vendor_id':
+                qs = qs.filter(vendorid__icontains=search_params)
+            elif field_option == 'vendor_name':
+                qs = qs.filter(vendorname__icontains=search_params)
+            elif field_option == 'amount':
+                qs = qs.filter(amount__icontains=search_params)
+            elif field_option == 'status':
+                status_map = {
+                    'pending': 0, '0': 0,
+                    'success': 1, '1': 1,
+                    'failed': 2, '2': 2,
+                }
+                code = status_map.get(search_params.lower()) if isinstance(search_params, str) else None
+                if code is not None:
+                    qs = qs.filter(status=code)
+                else:
+                    qs = qs.none()
+            elif field_option == 'batch':
+                qs = qs.filter(batch_identifier__icontains=search_params)
+            elif field_option == 'processed_by':
+                qs = qs.filter(processed_by__icontains=search_params)
+            elif field_option == 'project':
+                if str(search_params).isdigit():
+                    qs = qs.filter(project_id=int(search_params))
+                else:
+                    qs = qs.filter(project__project_name__icontains=search_params)
+
+        qs = qs.order_by('-timestamp')
+
+        values = qs.values(
+            'amount',
+            'invoiceid',
+            'timestamp',
+            'transaction_date',
+            'vendorid',
+            'vendorname',
+            'project__project_name',
+            'batch_identifier',
+            'status',
+            'processed_by',
+        )
+
+        df = pd.DataFrame.from_records(values)
+        # Normalize/format columns
+        if not df.empty:
+            # Timestamp to string
+            try:
+                df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce').dt.strftime('%Y-%m-%d %H:%M:%S')
+            except Exception:
+                pass
+            # Status to labels
+            status_labels = {0: 'Pending', 1: 'Success', 2: 'Failed'}
+            try:
+                df['status'] = df['status'].map(status_labels).fillna('Unknown')
+            except Exception:
+                pass
+
+        # Reorder and rename columns for readability
+        desired_cols = [
+            'amount', 'invoiceid', 'timestamp', 'transaction_date', 'vendorid', 'vendorname',
+            'project__project_name', 'batch_identifier', 'status', 'processed_by'
+        ]
+        for col in desired_cols:
+            if col not in df.columns:
+                df[col] = ''
+        df = df[desired_cols]
+        df.columns = [
+            'Amount', 'Payment Number', 'Posting Date/Time', 'Transaction Date', 'Beneficiary ID', 'Beneficiary Name',
+            'Project', 'Batch', 'Status', 'Processed By'
+        ]
+
+        # Write to in-memory buffer
+        buffer = io.BytesIO()
+        with pd.ExcelWriter(buffer, engine='xlsxwriter', options={'remove_timezone': True}) as writer:
+            sheet_name = 'Filtered History'
+            df.to_excel(writer, index=False, sheet_name=sheet_name)
+
+        # Build filename
+        if start_date_raw and end_date_raw:
+            fname = f"Filtered_Transaction_History_{start_date_raw}_{end_date_raw}.xlsx"
+        else:
+            fname = "Filtered_Transaction_History.xlsx"
+
+        resp = HttpResponse(
+            buffer.getvalue(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        resp['Content-Disposition'] = f'attachment; filename="{fname}"'
+        return resp
+    except Exception as e:
+        return HttpResponse(f'Error exporting filtered history: {e}', status=500)
+
+
+
+def export_history_filtered_json(request):
+    """Return filtered transaction history as JSON rows, reusing the same
+    semantics as export_history_filtered. This enables client-side PDF export.
+    Query params: filter_options, search_params, start_date, end_date (dd-mm-YYYY)
+    """
+    try:
+        if request.method != 'GET':
+            return JsonResponse({'success': False, 'message': 'Only GET allowed'}, status=405)
+
+        search_params = (request.GET.get('search_params') or '').strip()
+        field_option = (request.GET.get('filter_options') or '').strip()
+        start_date_raw = request.GET.get('start_date')
+        end_date_raw = request.GET.get('end_date')
+
+        qs = ProcessedDeposits.objects.exclude(status=2)
+
+        # Date range
+        try:
+            if start_date_raw and end_date_raw:
+                start_date = format_date(start_date_raw)
+                end_date = format_date(end_date_raw)
+                qs = qs.filter(timestamp__range=(start_date, end_date))
+        except Exception:
+            pass
+
+        # Field filters
+        if field_option and search_params:
+            if field_option == 'invoice_id':
+                qs = qs.filter(invoiceid__icontains=search_params)
+            elif field_option == 'vendor_id':
+                qs = qs.filter(vendorid__icontains=search_params)
+            elif field_option == 'vendor_name':
+                qs = qs.filter(vendorname__icontains=search_params)
+            elif field_option == 'amount':
+                qs = qs.filter(amount__icontains=search_params)
+            elif field_option == 'status':
+                status_map = {
+                    'pending': 0, '0': 0,
+                    'success': 1, '1': 1,
+                    'failed': 2, '2': 2,
+                }
+                code = status_map.get(search_params.lower()) if isinstance(search_params, str) else None
+                if code is not None:
+                    qs = qs.filter(status=code)
+                else:
+                    qs = qs.none()
+            elif field_option == 'batch':
+                qs = qs.filter(batch_identifier__icontains=search_params)
+            elif field_option == 'processed_by':
+                qs = qs.filter(processed_by__icontains=search_params)
+            elif field_option == 'project':
+                if str(search_params).isdigit():
+                    qs = qs.filter(project_id=int(search_params))
+                else:
+                    qs = qs.filter(project__project_name__icontains=search_params)
+
+        qs = qs.order_by('-timestamp')
+
+        values = qs.values(
+            'amount',
+            'invoiceid',
+            'timestamp',
+            'transaction_date',
+            'transaction_ref',
+            'vendorid',
+            'vendorname',
+            'batch_identifier',
+            'status',
+            'processed_by',
+            'project__project_name',
+        )
+        rows = list(values)
+        for r in rows:
+            ts = r.get('timestamp')
+            try:
+                r['timestamp'] = ts.strftime('%Y-%m-%d %H:%M:%S') if ts else ''
+            except Exception:
+                r['timestamp'] = str(ts) if ts else ''
+        return JsonResponse({'success': True, 'results': rows})
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': f'Error exporting filtered JSON: {e}'}, status=500)

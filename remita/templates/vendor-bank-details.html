@@ -6,10 +6,10 @@
         <div class="container pt-5">
             <div class="row mb-3 ">
                 <div class="pb-5 ">
-                    <h3 style="position: absolute;left: 100px;font-weight: 600;font-size: 28px;">AP Vendors</h3>
+                    <h3 style="position: absolute;left: 100px;font-weight: 600;font-size: 28px;">Vendor Bank Details</h3>
                     <form style="position: absolute;right: 100px;">
                         <div class="search-bar">
-                            <input type="text" placeholder="Search by ID" id="vendor-search" name="vendor-search"
+                            <input type="text" placeholder="Search by name" id="vendor-search" name="vendor-search"
                                    >
                             <button class="btn text-white" type="button" id="search-button">
                                 <i class="fa fa-search"></i>
@@ -23,10 +23,9 @@
                     <tr>
                         <th scope="col">Account No</th>
                         <th scope="col">Account Name</th>
-                        <th scope="col">Vendor ID</th>
-                        <th scope="col">Vendor Email</th>
+                        <th scope="col">Beneficiary Email</th>
                         <th scope="col">Bank Name</th>
-                        <th scope="col">Bank Code</th>s
+                        <th scope="col">Bank Code</th>
                         <th scope="col">Actions</th>
                     </tr>
                     </thead>
@@ -36,7 +35,6 @@
                             <tr>
                                 <td>{{ details.account_no }}</td>
                                 <td>{{ details.account_name }}</td>
-                                <td>{{ details.vendor_id }}</td>
                                 <td>{{ details.vendor_email }}</td>
                                 <td>{{ details.bank_name }}</td>
                                 <td id="vendor_acc">{{ details.bank_code }}</td>
