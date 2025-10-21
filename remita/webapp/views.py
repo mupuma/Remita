@@ -390,12 +390,8 @@ def bankUploadViaForm(request):
 
             if matched_bank:
                 vendor.bank_name = matched_bank.get("bankName")
-                vendor.country_code = matched_bank.get("countryCode")
-                vendor.currencies = matched_bank.get("currencies")
             else:
                 vendor.bank_name = None
-                vendor.country_code = None
-                vendor.currencies = None
 
             vendor.save()
             return redirect('webapp:bank-details')
@@ -488,12 +484,10 @@ def editBankUploadViaForm(request, acc_id):
 
             if matched_bank:
                 vendor.bank_name = matched_bank.get("bankName")
-                vendor.country_code = matched_bank.get("countryCode")
-                vendor.currencies = matched_bank.get("currencies")
+
             else:
                 vendor.bank_name = None
-                vendor.country_code = None
-                vendor.currencies = None
+
 
             vendor.save()
             return redirect('webapp:bank-details')
@@ -986,7 +980,7 @@ def generate_unique_reference():
     return f"{unique_id}"
 
 
-def perform_name_enquiry(token, bank_code, account_number):
+def perform_name_enquiry(token, bank_code, account_number, account_name):
     """
     Perform name enquiry to validate account details before transfer
 
@@ -998,7 +992,7 @@ def perform_name_enquiry(token, bank_code, account_number):
     Returns:
         dict: Response containing account name if successful, error otherwise
     """
-    url = "https://api-demo.systemspecsng.com/services/connect-gateway//api/v1/interbank/name/enquiry"
+    url = "https://api-demo.systemspecsng.com/services/connect-gateway/api/v1/integration/account/lookup"
 
     headers = {
         'Authorization': f'Bearer {token}',
@@ -1006,8 +1000,9 @@ def perform_name_enquiry(token, bank_code, account_number):
     }
 
     payload = {
+        "sourceAccount": account_number,
         "sourceBankCode": bank_code,
-        "sourceAccount": account_number
+        "sourceAccountName": account_name
     }
 
     try:

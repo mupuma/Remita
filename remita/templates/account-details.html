@@ -28,7 +28,7 @@
                 <!-- BANK CODE -->
                 <div id="sortCode">
                     <label class="formbold-form-label">Bank Code</label>
-                    <input class="formbold-form-input" name="sort_code" type="text" id="sort_code" placeholder="Enter bank code">
+                    <input class="formbold-form-input" name="bank_code" type="text" id="bank_code" placeholder="Enter bank code">
                 </div>
             </div>
 
@@ -60,7 +60,7 @@
                 <!-- BRANCH NAME -->
                 <div>
                     <label class="formbold-form-label">Branch Name</label>
-                    <input id="branch" name="branch" class="formbold-form-input" type="text" readonly>
+                    <input id="branch" name="branch" class="formbold-form-input" type="text" placeholder="Enter branch name">
                 </div>
             </div>
 
@@ -80,7 +80,7 @@
             </div>
 
             <div class="text-center mt-3">
-                <button class="formbold-btn" id="submit" disabled>Save</button>
+                <button class="formbold-btn" id="submit">Save</button>
             </div>
         </form>
     </div>
@@ -92,7 +92,7 @@
 
 <script>
 document.addEventListener("DOMContentLoaded", function() {
-    const sortCodeInput = document.getElementById("sort_code");
+    const sortCodeInput = document.getElementById("bank_code");
     const bankDropdown = document.getElementById("bankDropdown");
     const submitBtn = document.getElementById("submit");
 
