@@ -47,7 +47,7 @@
                 <div class="formbold-input-flex">
                     <div id="sortCode">
                         <label class="formbold-form-label">{{ form.bank_code.label }}</label>
-                        {% render_field form.bank_code type="text" id="bank_code" class="formbold-form-input" %}
+                        {% render_field form.bank_code type="text" id="bank_code" class="formbold-form-input" readonly=true %}
                         {{ form.bank_code.errors }}
                     </div>
                     <div id="acc">
