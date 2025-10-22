@@ -75,6 +75,16 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'mupumamgtsdev@gmail.com'
 EMAIL_HOST_PASSWORD = 'nnbhieknirlbtvcx'  # Use an app password if 2FA is enabled
 DEFAULT_FROM_EMAIL = 'mupumamgtsdev@gmail.com'
+
+REMITA_API_PUBLIC_KEY= '2LEPNR6RZQAD0J7G'
+REMITA_API_SECRET_KEY= 'GZU4BP1PRAKPBE1SD27EW6HH2QMM0US5'
+
+REMITA_API_AUTH_URL = 'https://demo.remita.net/remita/exapp/api/v1/send/api/uaasvc/uaa/token'
+REMITA_API_BANK_LIST_URL='https://api-demo.systemspecsng.com/services/connect-gateway/api/v1/integration/banks'
+REMITA_API_ACCOUNT_LOOKUP_URL='https://api-demo.systemspecsng.com/services/connect-gateway/api/v1/integration/account/lookup'
+REMITA_API_BULK_PAYMENT_URL='https://api-demo.systemspecsng.com/services/connect-gateway/api/v1/integration/bulk/payment'
+REMITA_API_BULK_PAYMENT_STATUS_URL='f"https://api-demo.systemspecsng.com/services/connect-gateway/api/v1/integration/bulk/payment/status/{batch_ref}"'
+REMITA_API_BULK_PAYMENT_DETAILS_URL='f"https://api-demo.systemspecsng.com/services/connect-gateway/api/v1/integration/bulk/payment/details/{batch_ref}"'
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 

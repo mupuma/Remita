@@ -354,37 +354,6 @@ function fetchSearchResults(queryParams, page) {
             console.error('Error fetching search results:', error);
         });
 }
-function fetchHistorySearchResults(queryParams, page) {
-    const historySearchInput = queryParams[0];
-    const historyFilterOptions = queryParams[1];
-
-    fetch(`history-search/?search_params=${historySearchInput}&filter_options=${historyFilterOptions}&page=${page}`)
-        .then(response => response.text())
-        .then(html => {
-            // Parse the HTML response
-            const parser = new DOMParser();
-            const newDoc = parser.parseFromString(html, 'text/html');
-            const newChart = newDoc.getElementById('chart-div')
-            // Get the new HTML elements
-            const newTable = newDoc.getElementById('table-body');
-            const newPaginator = newDoc.getElementById('paginator');
-            numberOfPages = parseInt(newPaginator.dataset.numPages);
-            console.log(numberOfPages, selectedPageNumber)
-            const chart = document.getElementById('chart-div')
-            // Replace the existing table and paginator with the new ones
-            const tableBody = document.getElementById('table-body');
-            const paginator = document.getElementById('paginator');
-            chart.replaceWith(newChart);
-            tableBody.replaceWith(newTable);
-            paginator.replaceWith(newPaginator)
-            console.log(newPaginator)
-            updatePaginationLinks(newPaginator);
-        })
-        .catch(error => {
-            console.error('Error fetching search results:', error);
-        });
-}
-// Add event listener to change page links
 
 function getCSRFToken() {
     let csrfToken = document.cookie.split('; ').find(row => row.startsWith('csrftoken')).split('=')[1];

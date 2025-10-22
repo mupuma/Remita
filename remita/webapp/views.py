@@ -252,7 +252,7 @@ def loadBankList(request):
     try:
         # Make a GET request to the Remita API
         resp = requests.get(
-            url="https://api-demo.systemspecsng.com/services/connect-gateway/api/v1/integration/banks",
+            url=getattr(settings, 'REMITA_API_BANK_LIST_URL',"https://api-demo.systemspecsng.com/services/connect-gateway/api/v1/integration/banks"),
             headers=transaction_headers,
             verify=False
         )
@@ -326,7 +326,8 @@ def bankUploadViaForm(request):
         try:
             # Fetch bank list to resolve bank name from bank code
             resp = requests.get(
-                url="https://api-demo.systemspecsng.com/services/connect-gateway/api/v1/integration/banks",
+
+                url=getattr(settings, 'REMITA_API_BANK_LIST_URL',"https://api-demo.systemspecsng.com/services/connect-gateway/api/v1/integration/banks"),
                 headers=transaction_headers,
                 verify=False
             )
@@ -389,7 +390,7 @@ def editBankUploadViaForm(request, acc_id):
         try:
             # Refresh bank name based on bank code
             resp = requests.get(
-                url="https://api-demo.systemspecsng.com/services/connect-gateway/api/v1/integration/banks",
+                url=getattr(settings, 'REMITA_API_BANK_LIST_URL',"https://api-demo.systemspecsng.com/services/connect-gateway/api/v1/integration/banks"),
                 headers=transaction_headers,
                 verify=False
             )
@@ -465,7 +466,7 @@ def perform_name_enquiry(token, bank_code, account_number):
     Returns:
         dict: Response containing account name if successful, error otherwise
     """
-    url = "https://api-demo.systemspecsng.com/services/connect-gateway/api/v1/integration/account/lookup"
+    url = getattr(settings, 'REMITA_API_ACCOUNT_LOOKUP_URL',"https://api-demo.systemspecsng.com/services/connect-gateway/api/v1/integration/account/lookup")
 
     headers = {
         'Authorization': f'Bearer {token}',
@@ -794,16 +795,45 @@ def get_search_results(request):
 
 def get_history_search_results(request):
     """Filter transaction history by provided criteria and render the history page.
-    Supported fields: invoice_id, vendor_id, vendor_name, amount, status, batch, processed_by, project.
+    Supported fields: invoice_id, vendor_id, vendor_name, amount, status, batch, processed_by, project, date.
     Query params:
-      - filter_options: one of [invoice_id, vendor_id, vendor_name, amount, status, batch, processed_by, project]
-      - search_params: value to search for
+      - filter_options: one of [invoice_id, vendor_id, vendor_name, amount, status, batch, processed_by, project, date]
+      - search_params: value to search for (not used when filter_options=date)
+      - start_date, end_date: optional when filter_options=date (accepts YYYY-MM-DD or dd-mm-YYYY)
     """
     search_params = (request.GET.get('search_params') or '').strip()
     field_option = (request.GET.get('filter_options') or '').strip()
+    start_date_raw = (request.GET.get('start_date') or '').strip()
+    end_date_raw = (request.GET.get('end_date') or '').strip()
 
     qs = ProcessedDeposits.objects.exclude(status=2)
 
+    # Date range filter (when explicitly selected or when both dates are provided)
+    def _parse_date(s: str):
+        if not s:
+            return None
+        # Try ISO (YYYY-MM-DD)
+        try:
+            return datetime.date.fromisoformat(s)
+        except Exception:
+            pass
+        # Try legacy dd-mm-YYYY via helper
+        try:
+            return format_date(s)
+        except Exception:
+            return None
+
+    if field_option == 'date' or (start_date_raw and end_date_raw):
+        start_date = _parse_date(start_date_raw)
+        end_date = _parse_date(end_date_raw)
+        if start_date and end_date:
+            # Ensure start <= end
+            if start_date > end_date:
+                start_date, end_date = end_date, start_date
+            qs = qs.filter(timestamp__date__range=(start_date, end_date))
+        # When date filter is chosen, ignore generic search_params to avoid conflicts
+        if field_option == 'date':
+            search_params = ''
 
     # Field-based filters
     if field_option and search_params:
@@ -844,21 +874,19 @@ def get_history_search_results(request):
     page_obj = paginator.get_page(page_number)
 
     # Graphs (use the current filtered queryset within last 7 days for counts)
-    end_date = datetime.date.today()
-    start_date = end_date - datetime.timedelta(days=7)
-    date_range = [end_date - datetime.timedelta(days=x) for x in range(7)]
+    end_date_graph = datetime.date.today()
+    start_date_graph = end_date_graph - datetime.timedelta(days=7)
+    date_range = [end_date_graph - datetime.timedelta(days=x) for x in range(7)]
 
-    processed_deposits = ProcessedDeposits.objects.filter(timestamp__date__range=(start_date, end_date))
+    processed_deposits = ProcessedDeposits.objects.filter(timestamp__date__range=(start_date_graph, end_date_graph))
     processed_deposits = processed_deposits.annotate(trans_date=TruncDate('timestamp')).values('trans_date').annotate(count=Count('trans_date'))
     date_dict = {deposit['trans_date'].strftime('%Y-%m-%d'): deposit['count'] for deposit in processed_deposits}
     date_list = [date.strftime('%Y-%m-%d') for date in date_range]
     count_list = [date_dict.get(date.strftime('%Y-%m-%d'), 0) for date in date_range]
 
-    # Build query string excluding page and legacy date params for paginator
+    # Build query string excluding only page for paginator; retain date params for export
     qs_mut = request.GET.copy()
     qs_mut.pop('page', None)
-    qs_mut.pop('start_date', None)
-    qs_mut.pop('end_date', None)
     query_string = qs_mut.urlencode()
 
     context = {
@@ -873,9 +901,11 @@ def get_history_search_results(request):
         'active_filters': {
             'filter_options': field_option,
             'search_params': search_params,
+            'start_date': start_date_raw,
+            'end_date': end_date_raw,
         },
         'query_string': query_string,
-        'has_active_filters': bool(search_params),
+        'has_active_filters': bool(search_params or (start_date_raw and end_date_raw)),
     }
 
     return render(request, 'transaction-history.html', context)
@@ -966,7 +996,7 @@ def initiate_bulk_payment(token, source_account_details, transactions, batch_ref
     Returns:
         dict: Response containing batch reference and status
     """
-    url = "https://api-demo.systemspecsng.com/services/connect-gateway/api/v1/integration/bulk/payment"
+    url =  getattr(settings, 'REMITA_API_BULK_PAYMENT_URL',"https://api-demo.systemspecsng.com/services/connect-gateway/api/v1/integration/bulk/payment")
 
     headers = {
         'Authorization': f'Bearer {token}',
@@ -1053,7 +1083,7 @@ def check_bulk_payment_status_summary(token, batch_ref):
     Returns:
         dict: Summary of batch status including success/failed counts
     """
-    url = f"https://api-demo.systemspecsng.com/services/connect-gateway/api/v1/integration/bulk/payment/status/{batch_ref}"
+    url =getattr(settings, 'REMITA_API_BULK_PAYMENT_STATUS_URL',f"https://api-demo.systemspecsng.com/services/connect-gateway/api/v1/integration/bulk/payment/status/{batch_ref}")
 
     headers = {
         'Authorization': f'Bearer {token}'
@@ -1100,7 +1130,7 @@ def check_bulk_payment_details(token, batch_ref):
     Returns:
         dict: Detailed status of each transaction in the batch
     """
-    url = f"https://api-demo.systemspecsng.com/services/connect-gateway/api/v1/integration/bulk/payment/details/{batch_ref}"
+    url = getattr(settings, 'REMITA_API_BULK_PAYMENT_DETAILS_URL', f"https://api-demo.systemspecsng.com/services/connect-gateway/api/v1/integration/bulk/payment/details/{batch_ref}")
 
     headers = {
         'Authorization': f'Bearer {token}'
