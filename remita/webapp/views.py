@@ -28,7 +28,7 @@ from django.urls import reverse
 from django.views.decorators.http import require_GET
 
 from remita import settings
-from .forms import BankDetailsForm, RegistrationForm
+from .forms import BankDetailsForm, RegistrationForm, SourceBankForm
 from .permissions import user_is_approver, user_is_support_staff
 from .services import *
 from .models import *
@@ -163,23 +163,13 @@ class DecimalEncoder(json.JSONEncoder):
         # 👇️ otherwise use the default behavior
         return json.JSONEncoder.default(self, obj)
 
-
 def format_date(date_str):
     try:
-        # Parse the input date string using the specified format
-        date = datetime.datetime.strptime(date_str, "%d-%m-%Y")
-
-        # Set the time portion to "00:00:00"
-        formatted_date = date.replace(hour=0, minute=0, second=0)
-
-        # Convert the formatted date to the desired string format
-        formatted_date_str = formatted_date.strftime("%Y-%m-%d %H:%M:%S")
-
-        return formatted_date_str
+        # Parse input in dd-mm-yyyy format
+        date = datetime.datetime.strptime(date_str, "%d-%m-%Y").date()
+        return date
     except ValueError:
-        # Handle invalid date strings
         return None
-
 
 @csrf_exempt
 def UserLogin(request):
@@ -603,6 +593,7 @@ def homepage(request):
     context = {
         'transactions_by_db': transactions_by_db_list,
         'vendor_info': vendor_info,
+        'source_banks': SourceBankDetails.objects.all(),
     }
 
     return render(request, 'homepage.html', context)
@@ -1302,15 +1293,32 @@ def post_transactions(request):
                 transactions.append(transaction_element)
 
 
-            # Get source account details from request or settings
-            source_account_details = {
-                'sourceBankCode': getattr(settings ,'REMITA_SOURCE_BANK_CODE', '058'),
-                'sourceAccount':getattr(settings,'REMITA_SOURCE_ACCOUNT_NO', '0581426964'),
-                'sourceAccountName': getattr(settings,'REMITA_SOURCE_ACCOUNT_NAME', 'ABC'),
-                'originalBankCode': getattr(settings,'REMITA_SOURCE_BANK_CODE', '058'),
-                'originalAccountNumber': getattr(settings, 'REMITA_SOURCE_ACCOUNT_NO', '0581426964'),
-                'sourceNarration': request.POST.get('narration', 'Bulk Payment Transaction')
-            }
+            # Get source account details from selected SourceBankDetails model (fallback to settings if not provided)
+            source_bank_id = request.POST.get('source_bank_id')
+            source_account_details = None
+            if source_bank_id:
+                try:
+                    sb = SourceBankDetails.objects.get(pk=int(source_bank_id))
+                    source_account_details = {
+                        'sourceBankCode': sb.bank_code,
+                        'sourceAccount': sb.bank_account_number,
+                        'sourceAccountName': sb.bank_account_name,
+                        'originalBankCode': sb.bank_code,
+                        'originalAccountNumber': sb.bank_account_number,
+                        'sourceNarration': request.POST.get('narration', 'Bulk Payment Transaction')
+                    }
+                except Exception as _e:
+                    # Fallback to settings if invalid id
+                    pass
+            if not source_account_details:
+                source_account_details = {
+                    'sourceBankCode': getattr(settings, 'REMITA_SOURCE_BANK_CODE', '058'),
+                    'sourceAccount': getattr(settings, 'REMITA_SOURCE_ACCOUNT_NO', '0581426964'),
+                    'sourceAccountName': getattr(settings, 'REMITA_SOURCE_ACCOUNT_NAME', 'ABC'),
+                    'originalBankCode': getattr(settings, 'REMITA_SOURCE_BANK_CODE', '058'),
+                    'originalAccountNumber': getattr(settings, 'REMITA_SOURCE_ACCOUNT_NO', '0581426964'),
+                    'sourceNarration': request.POST.get('narration', 'Bulk Payment Transaction')
+                }
 
             # Optional: Check balance before initiating
 
@@ -1605,26 +1613,35 @@ def transaction_history_json(request):
     end_date_raw = request.GET.get('end_date')
     if not start_date_raw or not end_date_raw:
         return JsonResponse({'success': False, 'message': 'start_date and end_date are required'}, status=400)
+
     try:
         start_date = format_date(start_date_raw)
         end_date = format_date(end_date_raw)
-        qs = ProcessedDeposits.objects.filter(timestamp__range=(start_date, end_date)).exclude(status=2)
+
+        # Filter only by date (ignoring time)
+        qs = ProcessedDeposits.objects.filter(
+            timestamp__date__range=(start_date, end_date)
+        ).exclude(status=2)
+
         values = qs.values(
             'amount', 'invoiceid', 'timestamp', 'transaction_date', 'transaction_ref',
             'vendorid', 'vendorname', 'batch_identifier', 'status', 'processed_by', 'project__project_name'
         )
+
         rows = list(values)
-        # Normalize timestamp to str
+
+        # Format timestamp to a simple date (if you only want the date in the JSON too)
         for r in rows:
             ts = r.get('timestamp')
             try:
-                r['timestamp'] = ts.strftime('%Y-%m-%d %H:%M:%S') if ts else ''
+                r['timestamp'] = ts.strftime('%Y-%m-%d') if ts else ''
             except Exception:
                 r['timestamp'] = str(ts) if ts else ''
+
         return JsonResponse({'success': True, 'results': rows})
+
     except Exception as e:
         return JsonResponse({'success': False, 'message': f'Error: {e}'}, status=500)
-
 
 
 def export_history_filtered(request):
@@ -1834,3 +1851,45 @@ def export_history_filtered_json(request):
         return JsonResponse({'success': True, 'results': rows})
     except Exception as e:
         return JsonResponse({'success': False, 'message': f'Error exporting filtered JSON: {e}'}, status=500)
+
+
+@login_required(login_url='/')
+def source_bank_details(request):
+    banks = SourceBankDetails.objects.select_related('project').all().order_by('bank_name')
+    context = {
+        'source_banks': banks,
+    }
+    return render(request, 'source-bank-details.html', context)
+
+
+@login_required(login_url='/')
+def add_source_bank(request):
+    if request.method == 'POST':
+        form = SourceBankForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Source bank account added successfully.')
+            return redirect('webapp:source-bank-details')
+    else:
+        form = SourceBankForm()
+    return render(request, 'edit-source-bank.html', {'form': form, 'is_edit': False})
+
+
+@login_required(login_url='/')
+def edit_source_bank(request, pk: int):
+    try:
+        bank = SourceBankDetails.objects.get(pk=pk)
+    except SourceBankDetails.DoesNotExist:
+        messages.error(request, 'Source bank record not found.')
+        return redirect('webapp:source-bank-details')
+
+    if request.method == 'POST':
+        form = SourceBankForm(request.POST, instance=bank)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Source bank account updated successfully.')
+            return redirect('webapp:source-bank-details')
+    else:
+        form = SourceBankForm(instance=bank)
+
+    return render(request, 'edit-source-bank.html', {'form': form, 'is_edit': True})

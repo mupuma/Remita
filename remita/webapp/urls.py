@@ -29,6 +29,11 @@ urlpatterns = [
     path('bank_details', views.vendorBankDetails, name='bank-details'),
     path('bank_details/search/', views.searchvendorBankDetails, name='search-vendor-bank-details'),
     path('bank_details/live-search/', views.live_search_bank_details, name='live-search-bank-details'),
+    # Source bank management
+    path('source-banks/', views.source_bank_details, name='source-bank-details'),
+    path('source-banks/add/', views.add_source_bank, name='add-source-bank'),
+    path('source-banks/<int:pk>/edit/', views.edit_source_bank, name='edit-source-bank'),
+
     path('search/', views.get_search_results, name='search-transactions'),
     path('history-search/', views.get_history_search_results, name='search-transactions-history'),
     path('status/<str:batch_ref>/', views.check_transaction_status, name='check-transaction-status'),

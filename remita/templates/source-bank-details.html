@@ -1,0 +1,47 @@
+{% extends 'base2.html' %}
+{% load static %}
+{% block title %}Source Bank Accounts{% endblock %}
+{% block content %}
+<div class="container pt-5">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3 class="fw-semibold">Source Bank Accounts</h3>
+        <a class="btn text-white" style="background-color:#183660" href="{% url 'webapp:add-source-bank' %}">Add Source Bank</a>
+    </div>
+    <div class="card p-2 shadow-sm border-0">
+        <div class="table-responsive">
+            <table class="table table-hover mt-3">
+                <thead class="text-center">
+                    <tr>
+                        <th scope="col">Account Name</th>
+                        <th scope="col">Account Number</th>
+                        <th scope="col">Bank Name</th>
+                        <th scope="col">Bank Code</th>
+                        <th scope="col">Project</th>
+                        <th scope="col">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="text-center">
+                    {% if source_banks %}
+                        {% for sb in source_banks %}
+                            <tr>
+                                <td>{{ sb.bank_account_name }}</td>
+                                <td>{{ sb.bank_account_number }}</td>
+                                <td>{{ sb.bank_name }}</td>
+                                <td>{{ sb.bank_code }}</td>
+                                <td>{{ sb.project.project_name }}</td>
+                                <td>
+                                    <a class="btn btn-sm text-white" style="background-color:#183660;border-radius:50px" href="{% url 'webapp:edit-source-bank' pk=sb.id %}">Edit</a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="6" class="py-5">No Source Bank Accounts Found. <a href="{% url 'webapp:add-source-bank' %}">Add one</a></td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

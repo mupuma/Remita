@@ -1,0 +1,65 @@
+{% extends 'base2.html' %}
+{% load static %}
+{% load widget_tweaks %}
+
+{% block content %}
+<div class="formbold-main-wrapper">
+    {% if messages %}
+        {% for message in messages %}
+            <p class="text-muted text-center">{{ message }}</p>
+        {% endfor %}
+    {% endif %}
+
+    <div class="formbold-form-wrapper shadow-sm">
+        <form method="post" id="sourceBankDetailsForm">
+            {% csrf_token %}
+            <div class="formbold-form-title">
+                <h2>{% if is_edit %}Edit Source Bank{% else %}Add Source Bank{% endif %}</h2>
+            </div>
+
+            <!-- BANK DETAILS ROW 1 -->
+            <div class="formbold-input-flex">
+                <div>
+                    <label class="formbold-form-label">{{ form.bank_name.label }}</label>
+                    {% render_field form.bank_name class="formbold-form-input" %}
+                    {{ form.bank_name.errors }}
+                </div>
+
+                <div>
+                    <label class="formbold-form-label">{{ form.bank_code.label }}</label>
+                    {% render_field form.bank_code class="formbold-form-input" %}
+                    {{ form.bank_code.errors }}
+                </div>
+            </div>
+
+            <!-- BANK DETAILS ROW 2 -->
+            <div class="formbold-input-flex">
+                <div>
+                    <label class="formbold-form-label">{{ form.bank_account_number.label }}</label>
+                    {% render_field form.bank_account_number type="text" class="formbold-form-input" %}
+                    {{ form.bank_account_number.errors }}
+                </div>
+
+                <div>
+                    <label class="formbold-form-label">{{ form.bank_account_name.label }}</label>
+                    {% render_field form.bank_account_name type="text" class="formbold-form-input" %}
+                    {{ form.bank_account_name.errors }}
+                </div>
+            </div>
+
+            <!-- PROJECT SELECTION -->
+            <div>
+                <label class="formbold-form-label">{{ form.project.label }}</label>
+                {% render_field form.project class="formbold-form-input" %}
+                {{ form.project.errors }}
+            </div>
+
+            <!-- ACTION BUTTONS -->
+            <div class="text-center mt-3">
+                <a href="{% url 'webapp:source-bank-details' %}" class="formbold-btn" style="background-color: #6c757d;">Cancel</a>
+                <button class="formbold-btn" type="submit">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

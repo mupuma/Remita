@@ -1,50 +1,84 @@
 <div class="modal fade" id="post-transaction-modal" tabindex="-1" role="dialog"
      aria-labelledby="exampleModalCenterTitle" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-xl" role="document">
-        <div class="modal-content p-2">
-            <div class="modal-header border-0 ">
-                <h5 class="modal-title" id="exampleModalLongTitle" style="font-family: 'Roboto Slab',serif;">Selected
-                    Transactions</h5>
-                <button type="button" class="close bg-transparent border-0" data-bs-dismiss="modal" aria-label="Close">
-                    <span><i class="bi bi-x-lg"></i></span>
-                </button>
+        <div class="modal-content shadow-lg border-0">
+            <div class="modal-header border-bottom bg-light">
+                <h5 class="modal-title fw-semibold text-dark" id="exampleModalLongTitle" style="font-family: 'Roboto Slab', serif;">
+                    <i class="bi bi-receipt me-2" style="color: #183660;"></i>Selected Transactions
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body p-1">
-                <div class="row g-2 align-items-end">
-                    <div class="col-md-4">
-                        <label for="batch-ref-input" class="form-label">Batch Reference</label>
-                        <input type="text" id="batch-ref-input" class="form-control" placeholder="Will be auto-generated" readonly>
-                    </div>
-                    <div class="col-md-8">
-                        <label for="batch-desc-input" class="form-label">Batch Description</label>
-                        <input type="text" id="batch-desc-input" class="form-control" placeholder="Enter optional description for this batch">
+            <div class="modal-body p-4">
+                <!-- Source Bank Selection -->
+                <div class="card border-0 bg-light mb-4">
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="source-bank-select" class="form-label fw-medium text-secondary small">
+                                    <i class="bi bi-bank me-1"></i>Source Bank Account
+                                </label>
+                                <select id="source-bank-select" class="form-select shadow-sm border-0">
+                                    {% if source_banks %}
+                                        <option value="" disabled selected>Select source account...</option>
+                                        {% for sb in source_banks %}
+                                            <option value="{{ sb.id }}">{{ sb.bank_account_name }} - {{ sb.bank_account_number }} ({{ sb.bank_name }})</option>
+                                        {% endfor %}
+                                    {% else %}
+                                        <option value="" disabled>No source bank accounts configured</option>
+                                    {% endif %}
+                                </select>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <table class="table table-hover mt-3">
-                    <thead>
-                    <tr>
-                        <th scope="col">Date</th>
-                        <th scope="col">Amount</th>
-                        <th scope="col">Payment Number</th>
-                        <th scope="col">Remarks</th>
-                        <th scope="col">Beneficiary ID</th>
-                        <th scope="col">Beneficiary Name</th>
-                        <th scope="col">Beneficiary Account</th>
-                        <th scope="col">Bank Code</th>
-                        <th scope="col">Bank Name</th>
 
-                    </tr>
-                    </thead>
-                    <tbody id="modal-table-body">
-                    <!--Transactions to be posted will be dynamically added here-->
-                    </tbody>
-                </table>
+                <!-- Batch Information -->
+                <div class="card border-0 bg-light mb-4">
+                    <div class="card-body">
+                        <h6 class="card-subtitle mb-3 text-muted fw-medium">
+                            <i class="bi bi-folder me-1"></i>Batch Information
+                        </h6>
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label for="batch-ref-input" class="form-label fw-medium text-secondary small">Batch Reference</label>
+                                <input type="text" id="batch-ref-input" class="form-control shadow-sm border-0 bg-white" placeholder="Will be auto-generated" readonly>
+                            </div>
+                            <div class="col-md-8">
+                                <label for="batch-desc-input" class="form-label fw-medium text-secondary small">Batch Description</label>
+                                <input type="text" id="batch-desc-input" class="form-control shadow-sm border-0" placeholder="Enter optional description for this batch">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Transactions Table -->
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th scope="col" class="fw-semibold text-secondary small">Date</th>
+                                <th scope="col" class="fw-semibold text-secondary small">Amount</th>
+                                <th scope="col" class="fw-semibold text-secondary small">Payment Number</th>
+                                <th scope="col" class="fw-semibold text-secondary small">Remarks</th>
+                                <th scope="col" class="fw-semibold text-secondary small">Beneficiary ID</th>
+                                <th scope="col" class="fw-semibold text-secondary small">Beneficiary Name</th>
+                                <th scope="col" class="fw-semibold text-secondary small">Beneficiary Account</th>
+                                <th scope="col" class="fw-semibold text-secondary small">Bank Code</th>
+                                <th scope="col" class="fw-semibold text-secondary small">Bank Name</th>
+                            </tr>
+                        </thead>
+                        <tbody id="modal-table-body">
+                        <!--Transactions to be posted will be dynamically added here-->
+                        </tbody>
+                    </table>
+                </div>
             </div>
-            <div class="modal-footer border-0">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" aria-label="Close">Close
+            <div class="modal-footer border-top bg-light">
+                <button type="button" class="btn btn-light border shadow-sm" data-bs-dismiss="modal" aria-label="Close">
+                    <i class="bi bi-x-circle me-1"></i>Close
                 </button>
-                <button type="button" id="modal-submit-btn" class="btn text-white" style="background-color: #183660">
-                    Post Transactions
+                <button type="button" id="modal-submit-btn" class="btn text-white shadow-sm" style="background-color: #183660;">
+                    <i class="bi bi-check-circle me-1"></i>Post Transactions
                 </button>
             </div>
         </div>

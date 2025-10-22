@@ -5,7 +5,7 @@ import json
 import requests
 from django.forms import forms, ModelForm
 
-from .models import BankDetails, Users
+from .models import BankDetails, Users,SourceBankDetails
 from django import forms as djforms
 class BankDetailsForm(ModelForm):
     def __int__(self, *args, **kwargs):
@@ -81,3 +81,9 @@ class RegistrationForm(djforms.Form):
         user.is_active = False
         user.save(update_fields=['email', 'is_active'])
         return user
+
+
+class SourceBankForm(ModelForm):
+    class Meta:
+        model = SourceBankDetails
+        fields = ['bank_name', 'bank_code', 'bank_account_number', 'bank_account_name', 'project']

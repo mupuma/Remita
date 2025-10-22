@@ -538,7 +538,8 @@ if (modalSubmitBtn){
                 'transaction_type': JSON.stringify(selectedTransactionType),
                 'batch_ref': batchRef,
                 'narration': batchDesc,
-                'transaction_refs': JSON.stringify(txRefsMap)
+                'transaction_refs': JSON.stringify(txRefsMap),
+                                'source_bank_id': (function(){ var el = document.getElementById('source-bank-select'); return el ? el.value : ''; })()
             },
             dataType: 'json',
         })

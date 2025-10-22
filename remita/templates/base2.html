@@ -46,11 +46,14 @@
                                                     class="text-white nav-link navbar-link">Transaction History</a></li>
                     {% endif %}
                     <li class="nav-item dropdown px-2">
-                        <a class="nav-link navbar-link dropdown-toggle text-white" href="#"
-                           role="button" data-bs-toggle="popover"
-                           data-bs-placement="bottom" data-bs-html="true"
-                           data-bs-content="<a href='{% url 'webapp:logout' %}' style='text-decoration: none;'>Sign Out</a>">
-                            {{ request.user.username }}</a>
+                        <a class="nav-link navbar-link dropdown-toggle text-white" href="#" id="userMenu" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            {{ request.user.username }}
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
+                            <li><a class="dropdown-item" href="{% url 'webapp:source-bank-details' %}">Source Bank Accounts</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{% url 'webapp:logout' %}">Sign Out</a></li>
+                        </ul>
                     </li>
                 </ul>
             </div>

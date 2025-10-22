@@ -49,6 +49,15 @@ class Projects(models.Model):
     def __str__(self):
         return self.project_name
 
+class SourceBankDetails(models.Model):
+    bank_name = models.CharField(max_length=255, verbose_name='Bank Name')
+    bank_code = models.CharField(max_length=255, verbose_name='Bank Code')
+    bank_account_number = models.CharField(max_length=255, verbose_name='Bank Account Number')
+    bank_account_name = models.CharField(max_length=255, verbose_name='Bank Account Name')
+    project = models.ForeignKey(Projects, on_delete=models.CASCADE, related_name='source_bank_details',default=1)
+    def __str__(self):
+        return  self.bank_account_number
+
 
 class BankDetails(models.Model):
     account_no = models.CharField(max_length=20, verbose_name='Account Number')

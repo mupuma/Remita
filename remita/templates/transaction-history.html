@@ -222,108 +222,105 @@
     <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
     <script>
-        // Initialize date pickers
+         // Initialize date pickers
         const datepicker1 = document.getElementById('datepicker1');
         const datepicker2 = document.getElementById('datepicker2');
         const exportButton = document.getElementById('excel-modal-submit-button');
         const pdfButton = document.getElementById('pdf-modal-submit-button');
 
-        // Initialize state variables
-        let isStartDateEmpty = true;
-        let isEndDateEmpty = true;
+        // Initialize Flatpickr instances
+        flatpickr(datepicker1, {
+            dateFormat: "d-m-Y",
+            onChange: function(selectedDates, dateStr, instance) {
+                checkDatesAndEnableButtons();
+            }
+        });
 
         flatpickr(datepicker2, {
-            dateFormat: "d-m-Y"
-        });
-        flatpickr(datepicker1, {
-            dateFormat: "d-m-Y"
-        });
-
-        datepicker1.addEventListener('input', (e) => {
-            isStartDateEmpty = false;
-            if (isStartDateEmpty === false && isEndDateEmpty === false) {
-                exportButton.removeAttribute('disabled');
-                pdfButton.removeAttribute('disabled');
+            dateFormat: "d-m-Y",
+            onChange: function(selectedDates, dateStr, instance) {
+                checkDatesAndEnableButtons();
             }
         });
 
-        datepicker2.addEventListener('input', (e) => {
-            isEndDateEmpty = false;
-            if (isStartDateEmpty === false && isEndDateEmpty === false) {
-                exportButton.removeAttribute('disabled');
-                pdfButton.removeAttribute('disabled');
+        // Function to check if both dates are filled and enable buttons
+        function checkDatesAndEnableButtons() {
+            const startDate = datepicker1.value.trim();
+            const endDate = datepicker2.value.trim();
+
+            console.log('Start date:', startDate, 'End date:', endDate);
+
+            if (startDate && endDate) {
+                if (exportButton) exportButton.removeAttribute('disabled');
+                if (pdfButton) pdfButton.removeAttribute('disabled');
+                console.log('Buttons enabled');
+            } else {
+                if (exportButton) exportButton.setAttribute('disabled', 'disabled');
+                if (pdfButton) pdfButton.setAttribute('disabled', 'disabled');
+                console.log('Buttons disabled - waiting for both dates');
             }
-        });
+        }
 
-        exportButton.addEventListener('click', (e) => {
-            e.preventDefault();
-            fetch(`/download/?start_date=${datepicker1.value}&end_date=${datepicker2.value}`)
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Network response was not ok');
-                    }
-                    return response.blob();
-                })
-                .then(blob => {
-                    // Create temporary link to download the Excel file
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `Transaction_History_${datepicker1.value}_${datepicker2.value}.xlsx`;
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                })
-                .catch(error => {
-                    console.error('Error downloading transaction history:', error);
-                    alert('Error downloading transaction history: ' + error.message);
-                });
-        });
+        // Also add input event listeners as backup
+        datepicker1.addEventListener('input', checkDatesAndEnableButtons);
+        datepicker2.addEventListener('input', checkDatesAndEnableButtons);
 
-        pdfButton.addEventListener('click', (e) => {
-            e.preventDefault();
-            const s = datepicker1.value;
-            const eDate = datepicker2.value;
-            fetch(`/download/json/?start_date=${s}&end_date=${eDate}`)
-                .then(r => r.json())
-                .then(payload => {
-                    if (!payload.success) {
-                        throw new Error(payload.message || 'Unable to fetch data');
-                    }
-                    const rows = payload.results || [];
-                    // Build table data
-                    const head = [['Amount', 'Invoice ID', 'Posting Date/Time', 'Transaction Date', 'Vendor ID', 'Vendor Name', 'Project', 'Batch', 'Status', 'Processed By']];
-                    const body = rows.map(r => [
-                        r.amount || '',
-                        r.invoiceid || '',
-                        r.timestamp || '',
-                        r.transaction_date || '',
-                        r.vendorid || '',
-                        r.vendorname || '',
-                        r['project__project_name'] || '',
-                        r.batch_identifier || '',
-                        (r.status === 0 ? 'Pending' : (r.status === 1 ? 'Success' : (r.status === 2 ? 'Failed' : 'Unknown'))),
-                        r.processed_by || ''
-                    ]);
+        // Excel export button handler
 
-                    const { jsPDF } = window.jspdf;
-                    const doc = new jsPDF('l', 'pt', 'a4');
-                    doc.setFontSize(14);
-                    doc.text(`Transaction History (${s} to ${eDate})`, 40, 40);
-                    doc.autoTable({
-                        startY: 60,
-                        head: head,
-                        body: body,
-                        styles: { fontSize: 8 },
-                        headStyles: { fillColor: [24, 54, 96] }
+
+        // PDF export button handler
+        if (pdfButton) {
+            pdfButton.addEventListener('click', (e) => {
+                e.preventDefault();
+                const s = datepicker1.value;
+                const eDate = datepicker2.value;
+
+                if (!s || !eDate) {
+                    alert('Please select both start and end dates');
+                    return;
+                }
+
+                fetch(`/download/json/?start_date=${s}&end_date=${eDate}`)
+                    .then(r => r.json())
+                    .then(payload => {
+                        if (!payload.success) {
+                            throw new Error(payload.message || 'Unable to fetch data');
+                        }
+                        const rows = payload.results || [];
+                        // Build table data
+                        const head = [['Amount', 'Invoice ID', 'Posting Date/Time', 'Transaction Date', 'Vendor ID', 'Vendor Name', 'Project', 'Batch', 'Status', 'Processed By']];
+                        const body = rows.map(r => [
+                            r.amount || '',
+                            r.invoiceid || '',
+                            r.timestamp || '',
+                            r.transaction_date || '',
+                            r.vendorid || '',
+                            r.vendorname || '',
+                            r['project__project_name'] || '',
+                            r.batch_identifier || '',
+                            (r.status === 0 ? 'Pending' : (r.status === 1 ? 'Success' : (r.status === 2 ? 'Failed' : 'Unknown'))),
+                            r.processed_by || ''
+                        ]);
+
+                        const { jsPDF } = window.jspdf;
+                        const doc = new jsPDF('l', 'pt', 'a4');
+                        doc.setFontSize(14);
+                        doc.text(`Transaction History (${s} to ${eDate})`, 40, 40);
+                        doc.autoTable({
+                            startY: 60,
+                            head: head,
+                            body: body,
+                            styles: { fontSize: 8 },
+                            headStyles: { fillColor: [24, 54, 96] }
+                        });
+                        doc.save(`Transaction_History_${s}_${eDate}.pdf`);
+                    })
+                    .catch(err => {
+                        console.error('Error generating PDF:', err);
+                        alert('Error generating PDF: ' + err.message);
                     });
-                    doc.save(`Transaction_History_${s}_${eDate}.pdf`);
-                })
-                .catch(err => {
-                    console.error('Error generating PDF:', err);
-                    alert('Error generating PDF: ' + err.message);
-                });
-        });
+            });
+        }
     </script>
     <script>
         function hideModal() {
