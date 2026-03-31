@@ -1,13 +1,12 @@
-
-from django.urls import path, include
-
+from django.urls import path
+from django.shortcuts import redirect
 from . import views
-
 
 app_name = 'webapp'
 
 urlpatterns = [
-    path('', views.UserLogin, name='login'),
+    path('', lambda request: redirect('webapp:login')),  # root redirect
+    path('login/', views.UserLogin, name='login'),
     path('register/', views.register, name='register'),
     path('register/approve/<str:token>/', views.approve_registration, name='approve-registration'),
     path('register/reject/<str:token>/', views.reject_registration, name='reject-registration'),
@@ -22,11 +21,11 @@ urlpatterns = [
     path('role/', views.checkUserRole),
     path('remove/<str:invoice_id>/<int:project_id>/', views.removetransaction, name='remove-transaction'),
     path('account_details/', views.vendor_account_details),
-    path('dashboard', views.homepage, name='homepage'),
+    path('dashboard/', views.homepage, name='homepage'),
     path('bank_details/edit/<str:acc_id>/', views.editBankUploadViaForm, name='edit-bank-details'),
     path('bank_details/upload/', views.bankUploadViaForm, name='upload-bank-details'),
 
-    path('bank_details', views.vendorBankDetails, name='bank-details'),
+    path('bank_details/', views.vendorBankDetails, name='bank-details'),
     path('bank_details/search/', views.searchvendorBankDetails, name='search-vendor-bank-details'),
     path('bank_details/live-search/', views.live_search_bank_details, name='live-search-bank-details'),
     # Source bank management

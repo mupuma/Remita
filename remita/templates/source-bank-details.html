@@ -1,3 +1,5 @@
+
+
 {% extends 'base2.html' %}
 {% load static %}
 {% block title %}Source Bank Accounts{% endblock %}
@@ -28,7 +30,13 @@
                                 <td>{{ sb.bank_account_number }}</td>
                                 <td>{{ sb.bank_name }}</td>
                                 <td>{{ sb.bank_code }}</td>
-                                <td>{{ sb.project.project_name }}</td>
+                                <td>
+                               {% if sb.project %}
+                               {{ sb.project.project_name }}
+                               {% else %}
+                                -
+                               {% endif %}
+                                </td>
                                 <td>
                                     <a class="btn btn-sm text-white" style="background-color:#183660;border-radius:50px" href="{% url 'webapp:edit-source-bank' pk=sb.id %}">Edit</a>
                                 </td>

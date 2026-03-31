@@ -27,9 +27,9 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'webapp',
     'widget_tweaks',
-    'django_htmx'
+    'webapp',
+    
 ]
 AUTHENTICATION_BACKENDS = [
     'webapp.backends.authBackend.RoleBackend',
@@ -76,8 +76,8 @@ EMAIL_HOST_USER = 'mupumamgtsdev@gmail.com'
 EMAIL_HOST_PASSWORD = 'ptrcailrtlrrkwde'  # Use an app password if 2FA is enabled
 DEFAULT_FROM_EMAIL = 'mupumamgtsdev@gmail.com'
 
-REMITA_API_PUBLIC_KEY= '2LEPNR6RZQAD0J7G'
-REMITA_API_SECRET_KEY= 'GZU4BP1PRAKPBE1SD27EW6HH2QMM0US5'
+REMITA_API_PUBLIC_KEY= 'C9MEL4NMZM7CNM5M'
+REMITA_API_SECRET_KEY= 'N7VSULFSJW25CEMQ740DNM8236JDIA3N'
 
 REMITA_API_AUTH_URL = 'https://demo.remita.net/remita/exapp/api/v1/send/api/uaasvc/uaa/token'
 REMITA_API_BANK_LIST_URL='https://api-demo.systemspecsng.com/services/connect-gateway/api/v1/integration/banks'
@@ -93,8 +93,8 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'payment_integration',
         'USER': 'root',
-        'PASSWORD': 'Admin123',
-        'HOST': '127.0.0.1',
+        'PASSWORD': 'PassW0rd!23',
+        'HOST': 'localhost',
         'PORT': '3306'
     },
 
@@ -104,7 +104,7 @@ DATABASES = {
         'NAME': 'ACCDAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {'driver': 'ODBC Driver 17 for SQL Server'},
     },
@@ -113,7 +113,7 @@ DATABASES = {
         'NAME': 'ADADAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {'driver': 'ODBC Driver 17 for SQL Server'},
     },
@@ -122,7 +122,7 @@ DATABASES = {
         'NAME': 'ANRDAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {'driver': 'ODBC Driver 17 for SQL Server'},
     },
@@ -131,7 +131,7 @@ DATABASES = {
         'NAME': 'APTDAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {'driver': 'ODBC Driver 17 for SQL Server'},
     },
@@ -140,7 +140,7 @@ DATABASES = {
         'NAME': 'ASPDAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {'driver': 'ODBC Driver 17 for SQL Server'},
     },
@@ -149,7 +149,7 @@ DATABASES = {
         'NAME': 'BEADAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {'driver': 'ODBC Driver 17 for SQL Server'},
     },
@@ -158,7 +158,7 @@ DATABASES = {
         'NAME': 'BEGDAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {'driver': 'ODBC Driver 17 for SQL Server'},
     },
@@ -167,7 +167,7 @@ DATABASES = {
         'NAME': 'BRIDAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {'driver': 'ODBC Driver 17 for SQL Server'},
     },
@@ -176,7 +176,7 @@ DATABASES = {
         'NAME': 'BUFDAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {'driver': 'ODBC Driver 17 for SQL Server'},
     },
@@ -185,7 +185,7 @@ DATABASES = {
         'NAME': 'BUTDAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {'driver': 'ODBC Driver 17 for SQL Server'},
     },
@@ -194,7 +194,7 @@ DATABASES = {
         'NAME': 'CAMDAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {'driver': 'ODBC Driver 17 for SQL Server'},
     },
@@ -203,7 +203,7 @@ DATABASES = {
         'NAME': 'CASDAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {'driver': 'ODBC Driver 17 for SQL Server'},
     },
@@ -212,7 +212,7 @@ DATABASES = {
         'NAME': 'CIPDAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {'driver': 'ODBC Driver 17 for SQL Server'},
     },
@@ -221,7 +221,7 @@ DATABASES = {
         'NAME': 'CLEDAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {'driver': 'ODBC Driver 17 for SQL Server'},
     },
@@ -230,7 +230,7 @@ DATABASES = {
         'NAME': 'D2EDAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {'driver': 'ODBC Driver 17 for SQL Server'},
     },
@@ -239,7 +239,7 @@ DATABASES = {
         'NAME': 'EFADAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {'driver': 'ODBC Driver 17 for SQL Server'},
     },
@@ -248,7 +248,7 @@ DATABASES = {
         'NAME': 'ENHDAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {'driver': 'ODBC Driver 17 for SQL Server'},
     },
@@ -257,7 +257,7 @@ DATABASES = {
         'NAME': 'EQUDAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {'driver': 'ODBC Driver 17 for SQL Server'},
     },
@@ -266,7 +266,7 @@ DATABASES = {
         'NAME': 'EXCDAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {'driver': 'ODBC Driver 17 for SQL Server'},
     },
@@ -275,7 +275,7 @@ DATABASES = {
         'NAME': 'EXPDAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {'driver': 'ODBC Driver 17 for SQL Server'},
     },
@@ -284,7 +284,7 @@ DATABASES = {
         'NAME': 'FELDAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {'driver': 'ODBC Driver 17 for SQL Server'},
     },
@@ -293,7 +293,7 @@ DATABASES = {
         'NAME': 'GC7DAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {'driver': 'ODBC Driver 17 for SQL Server'},
     },
@@ -302,7 +302,7 @@ DATABASES = {
         'NAME': 'GDRSDA',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {'driver': 'ODBC Driver 17 for SQL Server'},
     },
@@ -311,7 +311,7 @@ DATABASES = {
         'NAME': 'GESDAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {'driver': 'ODBC Driver 17 for SQL Server'},
     },
@@ -320,7 +320,7 @@ DATABASES = {
         'NAME': 'GFSDAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {'driver': 'ODBC Driver 17 for SQL Server'},
     },
@@ -329,7 +329,7 @@ DATABASES = {
         'NAME': 'GFTBSR',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {'driver': 'ODBC Driver 17 for SQL Server'},
     },
@@ -338,7 +338,7 @@ DATABASES = {
         'NAME': 'GFTDAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {'driver': 'ODBC Driver 17 for SQL Server'},
     },
@@ -347,7 +347,7 @@ DATABASES = {
         'NAME': 'H3ADAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {'driver': 'ODBC Driver 17 for SQL Server'},
     },
@@ -356,7 +356,7 @@ DATABASES = {
         'NAME': 'HAFDAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {'driver': 'ODBC Driver 17 for SQL Server'},
     },
@@ -365,7 +365,7 @@ DATABASES = {
         'NAME': 'HEPDAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {'driver': 'ODBC Driver 17 for SQL Server'},
     },
@@ -374,7 +374,7 @@ DATABASES = {
         'NAME': 'HOMDAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {'driver': 'ODBC Driver 17 for SQL Server'},
     },
@@ -383,7 +383,7 @@ DATABASES = {
         'NAME': 'IEVDAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {'driver': 'ODBC Driver 17 for SQL Server'},
     },
@@ -392,7 +392,7 @@ DATABASES = {
         'NAME': 'IGHDAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {'driver': 'ODBC Driver 17 for SQL Server'},
     },
@@ -401,7 +401,7 @@ DATABASES = {
         'NAME': 'IHVGDA',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {'driver': 'ODBC Driver 17 for SQL Server'},
     },
@@ -410,7 +410,7 @@ DATABASES = {
         'NAME': 'IHVPAD',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {
             'driver': 'ODBC Driver 17 for SQL Server',
@@ -421,7 +421,7 @@ DATABASES = {
         'NAME': 'INVSDA',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {
             'driver': 'ODBC Driver 17 for SQL Server',
@@ -432,7 +432,7 @@ DATABASES = {
         'NAME': 'IMADAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {
             'driver': 'ODBC Driver 17 for SQL Server',
@@ -443,7 +443,7 @@ DATABASES = {
         'NAME': 'IMPDAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {
             'driver': 'ODBC Driver 17 for SQL Server',
@@ -454,7 +454,7 @@ DATABASES = {
         'NAME': 'IMUDAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {
             'driver': 'ODBC Driver 17 for SQL Server',
@@ -465,7 +465,7 @@ DATABASES = {
         'NAME': 'INFDAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {
             'driver': 'ODBC Driver 17 for SQL Server',
@@ -476,7 +476,7 @@ DATABASES = {
         'NAME': 'IRCDAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {
             'driver': 'ODBC Driver 17 for SQL Server',
@@ -487,7 +487,7 @@ DATABASES = {
         'NAME': 'ISEDAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {
             'driver': 'ODBC Driver 17 for SQL Server',
@@ -498,29 +498,19 @@ DATABASES = {
         'NAME': 'ITADAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {
             'driver': 'ODBC Driver 17 for SQL Server',
         },
     },
-    'LONDAT': {
-        'ENGINE': 'mssql',
-        'NAME': 'LONDAT',
-        'USER': 'sa',
-        'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
-        'PORT': '1433',
-        'OPTIONS': {
-            'driver': 'ODBC Driver 17 for SQL Server',
-        },
-    },
+    
     'LSTDAT': {
         'ENGINE': 'mssql',
         'NAME': 'LSTDAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {
             'driver': 'ODBC Driver 17 for SQL Server',
@@ -531,7 +521,7 @@ DATABASES = {
         'NAME': 'MALDAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {
             'driver': 'ODBC Driver 17 for SQL Server',
@@ -542,7 +532,7 @@ DATABASES = {
         'NAME': 'NDBSDA',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {
             'driver': 'ODBC Driver 17 for SQL Server',
@@ -553,7 +543,7 @@ DATABASES = {
         'NAME': 'NORDAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {
             'driver': 'ODBC Driver 17 for SQL Server',
@@ -564,7 +554,7 @@ DATABASES = {
         'NAME': 'OUTDAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {
             'driver': 'ODBC Driver 17 for SQL Server',
@@ -575,7 +565,7 @@ DATABASES = {
         'NAME': 'PAVDAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {
             'driver': 'ODBC Driver 17 for SQL Server',
@@ -586,7 +576,7 @@ DATABASES = {
         'NAME': 'PEDDAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {
             'driver': 'ODBC Driver 17 for SQL Server',
@@ -597,7 +587,7 @@ DATABASES = {
         'NAME': 'PLADAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {
             'driver': 'ODBC Driver 17 for SQL Server',
@@ -608,7 +598,7 @@ DATABASES = {
         'NAME': 'INFDAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {
             'driver': 'ODBC Driver 17 for SQL Server',
@@ -619,7 +609,7 @@ DATABASES = {
         'NAME': 'RSLDAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {
             'driver': 'ODBC Driver 17 for SQL Server',
@@ -630,7 +620,7 @@ DATABASES = {
         'NAME': 'SAFDAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {
             'driver': 'ODBC Driver 17 for SQL Server',
@@ -641,7 +631,7 @@ DATABASES = {
         'NAME': 'SCEDAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {
             'driver': 'ODBC Driver 17 for SQL Server',
@@ -652,7 +642,7 @@ DATABASES = {
         'NAME': 'INFDAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {
             'driver': 'ODBC Driver 17 for SQL Server',
@@ -663,7 +653,7 @@ DATABASES = {
         'NAME': 'SPEDAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {
             'driver': 'ODBC Driver 17 for SQL Server',
@@ -674,7 +664,7 @@ DATABASES = {
         'NAME': 'STADAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {
             'driver': 'ODBC Driver 17 for SQL Server',
@@ -685,7 +675,7 @@ DATABASES = {
         'NAME': 'SYNDAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {
             'driver': 'ODBC Driver 17 for SQL Server',
@@ -696,7 +686,7 @@ DATABASES = {
         'NAME': 'TICDAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {
             'driver': 'ODBC Driver 17 for SQL Server',
@@ -707,7 +697,7 @@ DATABASES = {
         'NAME': 'TIFDAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {
             'driver': 'ODBC Driver 17 for SQL Server',
@@ -718,7 +708,7 @@ DATABASES = {
         'NAME': 'TRIDAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {
             'driver': 'ODBC Driver 17 for SQL Server',
@@ -729,7 +719,7 @@ DATABASES = {
         'NAME': 'VERDAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {
             'driver': 'ODBC Driver 17 for SQL Server',
@@ -740,7 +730,7 @@ DATABASES = {
         'NAME': 'WANDAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {
             'driver': 'ODBC Driver 17 for SQL Server',
@@ -751,7 +741,7 @@ DATABASES = {
         'NAME': 'WONDAT',
         'USER': 'sa',
         'PASSWORD': 'sage300@ihvn',
-        'HOST': '10.20.30.16',
+        'HOST': '10.10.165.21',
         'PORT': '1433',
         'OPTIONS': {
             'driver': 'ODBC Driver 17 for SQL Server',
@@ -790,7 +780,7 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
-STATIC_URL = '/static/'
+STATIC_URL = '/remita/static/'
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, "static"),
 ]
@@ -800,3 +790,4 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+

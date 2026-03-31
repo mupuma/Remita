@@ -108,8 +108,8 @@ def check_and_refresh_token(request=None):
 
     # If no record exists or no token stored, fetch a new one
     if not auth or not auth.token or not auth.expires_at:
-        remita_username = getattr(settings, 'REMITA_API_PUBLIC_KEY', '2LEPNR6RZQAD0J7G')
-        remita_password = getattr(settings, 'REMITA_API_SECRET_KEY', 'GZU4BP1PRAKPBE1SD27EW6HH2QMM0US5')
+        remita_username = getattr(settings, 'REMITA_API_PUBLIC_KEY', 'C9MEL4NMZM7CNM5M')
+        remita_password = getattr(settings, 'REMITA_API_SECRET_KEY', 'N7VSULFSJW25CEMQ740DNM8236JDIA3N')
         token_result = get_remita_token(remita_username, remita_password)
         if token_result['success']:
             expires_at = now() + datetime.timedelta(seconds=token_result['expires_in'])
@@ -125,8 +125,8 @@ def check_and_refresh_token(request=None):
     # If token exists, check if it's expiring soon (5-minute buffer)
     buffer = datetime.timedelta(minutes=5)
     if now() >= (auth.expires_at - buffer):
-        remita_username = getattr(settings, 'REMITA_API_PUBLIC_KEY', '2LEPNR6RZQAD0J7G')
-        remita_password = getattr(settings, 'REMITA_API_SECRET_KEY', 'GZU4BP1PRAKPBE1SD27EW6HH2QMM0US5')
+        remita_username = getattr(settings, 'REMITA_API_PUBLIC_KEY', 'C9MEL4NMZM7CNM5M')
+        remita_password = getattr(settings, 'REMITA_API_SECRET_KEY', 'N7VSULFSJW25CEMQ740DNM8236JDIA3N')
         token_result = get_remita_token(remita_username, remita_password)
         if token_result['success']:
             auth.token = token_result['response_data']['data'][0]['accessToken']
@@ -174,65 +174,95 @@ def format_date(date_str):
 @csrf_exempt
 def UserLogin(request):
     """User login with Remita token generation"""
-    if request.method == 'POST':
-        try:
-            username = request.POST["username"]
-            password = request.POST["password"]
-            user = authenticate(request, username=username, password=password)
 
-            if user:
-                # Get Remita API credentials from settings
-                remita_username = getattr(settings, 'REMITA_API_PUBLIC_KEY', '2LEPNR6RZQAD0J7G')
-                remita_password = getattr(settings, 'REMITA_API_SECRET_KEY', 'GZU4BP1PRAKPBE1SD27EW6HH2QMM0US5')
+    if request.method != "POST":
+        return render(request, "index.html")
 
-                # Get Remita token
-                token_result = get_remita_token(remita_username, remita_password)
-                print(token_result)
-                if token_result['success']:
-                    # Store token in database (singleton row)
+    try:
+        username = request.POST.get("username")
+        password = request.POST.get("password")
 
-                    expires_at = now() + datetime.timedelta(seconds=token_result['expires_in'])
-                    auth = RemitaAuth.objects.first()
-                    if not auth:
-                        RemitaAuth.objects.create(token=token_result['response_data']['data'][0]['accessToken'],
-                                                  expires_at=expires_at)
-                    else:
-                        auth.token = token_result['response_data']['data'][0]['accessToken']
-                        auth.expires_at = expires_at
-                        auth.save(update_fields=['token', 'expires_at', 'updated_at'])
-                    print(f"Remita token acquired successfully, expires in {token_result['expires_in']} seconds")
-
-                    # Login user
-                    login(request, user)
-
-                    if user.role == '001':
-                        return redirect('webapp:bank-details')
-                    elif user.role == '002':
-                        return redirect('webapp:homepage')
-                else:
-                    print(f"Failed to get Remita token: {token_result.get('error')}")
-                    print(f"Response: {token_result.get('response_data')}")
-                    messages.warning(
-                        request,
-                        message="Login successful, but payment service unavailable. Some features may be limited."
-                    )
-                    login(request, user)
-                    if user.role == '001':
-                        return redirect('webapp:bank-details')
-                    elif user.role == '002':
-                        return redirect('webapp:homepage')
-            else:
-                messages.error(request, message="Username/Password not registered")
-                return redirect("webapp:login")
-
-        except Exception as e:
-            messages.error(request, message="An error occurred. Please try again.")
-            print(f"Login error: {str(e)}")
+        if not username or not password:
+            messages.error(request, "Username and password are required.")
             return redirect("webapp:login")
-    else:
-        return render(request, 'index.html')
 
+        user = authenticate(request, username=username, password=password)
 
+        if not user:
+            messages.error(request, "Username/Password not registered.")
+            return redirect("webapp:login")
+
+        # ----------------------------
+        # Get Remita Credentials
+        # ----------------------------
+        remita_username = getattr(settings, "REMITA_API_PUBLIC_KEY", None)
+        remita_password = getattr(settings, "REMITA_API_SECRET_KEY", None)
+
+        remita_ok = False
+        access_token = None
+        expires_in = 3600  # default fallback
+
+        if remita_username and remita_password:
+            token_result = get_remita_token(remita_username, remita_password)
+            print("Remita response:", token_result)
+
+            if isinstance(token_result, dict):
+                if token_result.get("success"):
+                    try:
+                        access_token = (
+                            token_result.get("response_data", {})
+                            .get("data", [{}])[0]
+                            .get("accessToken")
+                        )
+                        expires_in = int(token_result.get("expires_in", 3600))
+                        remita_ok = True
+                    except Exception as e:
+                        print("Token parsing error:", str(e))
+
+        # ----------------------------
+        # Save Remita Token If Success
+        # ----------------------------
+        if remita_ok and access_token:
+            expires_at = now() + datetime.timedelta(seconds=expires_in)
+
+            auth = RemitaAuth.objects.first()
+
+            if not auth:
+                RemitaAuth.objects.create(
+                    token=access_token,
+                    expires_at=expires_at,
+                )
+            else:
+                auth.token = access_token
+                auth.expires_at = expires_at
+                auth.save(update_fields=["token", "expires_at", "updated_at"])
+
+            print(f"Remita token saved. Expires in {expires_in} seconds.")
+        else:
+            messages.warning(
+                request,
+                "Login successful, but payment service unavailable."
+            )
+
+        # ----------------------------
+        # Login User
+        # ----------------------------
+        login(request, user)
+
+        # ----------------------------
+        # Role-based Redirect
+        # ----------------------------
+        if user.role == "001":
+            return redirect("webapp:bank-details")
+        elif user.role == "002":
+            return redirect("webapp:homepage")
+        else:
+            return redirect("webapp:homepage")
+
+    except Exception as e:
+        print("Login error:", str(e))
+        messages.error(request, "An unexpected error occurred.")
+        return redirect("webapp:login")
 """
 Functions to Handle Vendor Bank Details Upload and Validation
 
@@ -551,11 +581,11 @@ def homepage(request):
 
             batch_list = list(payments_qs.values_list('cntbtch', flat=True))
             refs = Aptcr.objects.using(alias).filter(cntbtch__in=batch_list).values('cntbtch','cntentr', 'textrmit')
-            ref_map = {f'{r['cntbtch']}-{r['cntentr']}': (r['textrmit'] or '').strip() for r in refs}
+            ref_map = {f"{r.get('cntbtch')}-{r.get('cntentr')}": (r.get('textrmit') or '').strip() for r in refs}
 
             txns = []
             for payment in payments_qs:
-                key = f'{str(payment.cntbtch)+'-'+str(payment.cntitem)}'
+                key = f'{payment.cntbtch}-{payment.cntitem}'
                 print(key)
                 date = change_date(str(payment.datermit))
                 amount = round(payment.amtpaym, 2)

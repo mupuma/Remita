@@ -1,4 +1,3 @@
-
 from django.contrib.auth.base_user import AbstractBaseUser
 from django.contrib.auth.models import PermissionsMixin, Permission,Group
 from django.db import models
@@ -23,7 +22,7 @@ class Users(AbstractBaseUser, PermissionsMixin):
     password = models.CharField(max_length=255)
     email = models.EmailField(max_length=255, blank=True, null=True)
     role = models.CharField(max_length=255, choices=ROLE)
-    is_active = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
     is_admin = models.BooleanField(default=False)
     is_staff = models.BooleanField(default=False)
     is_superuser = models.BooleanField(default=False)
@@ -54,7 +53,7 @@ class SourceBankDetails(models.Model):
     bank_code = models.CharField(max_length=255, verbose_name='Bank Code')
     bank_account_number = models.CharField(max_length=255, verbose_name='Bank Account Number')
     bank_account_name = models.CharField(max_length=255, verbose_name='Bank Account Name')
-    project = models.ForeignKey(Projects, on_delete=models.CASCADE, related_name='source_bank_details',default=1)
+    project = models.ForeignKey(Projects, on_delete=models.SET_NULL, null=True, blank=True, related_name='source_bank_details',default=1)
     def __str__(self):
         return  self.bank_account_number
 
@@ -67,7 +66,8 @@ class BankDetails(models.Model):
     vendor_email = models.EmailField(max_length=255, verbose_name='Vendor Email', blank=True)
     bank_name = models.CharField(max_length=255, verbose_name='Bank Name')
     bank_code = models.CharField(max_length=255, verbose_name='Bank Code')
-    project = models.ForeignKey(Projects, on_delete=models.CASCADE, related_name='bank_details',default=1)
+   # project = models.ForeignKey(Projects, on_delete=models.CASCADE, related_name='bank_details',default=1)
+    project = models.ForeignKey(Projects, on_delete=models.SET_NULL, null=True, blank=True, related_name='bank_details')
 
 
 class ProcessedDeposits(models.Model):
