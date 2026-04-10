@@ -65,8 +65,17 @@
                         <td>{{ transaction.REFERENCE }}</td>
                         <td>{{ transaction.IDVEND }}</td>
                         <td>
-                          <input type="text" name="account_name" class="form-control form-control-sm border-0 account-live-input" style="width: 180px" placeholder="Search account..." list="acct-list-{{ transaction.IDINVC }}" data-vendor="{{ transaction.IDVEND }}">
-                          <datalist id="acct-list-{{ transaction.IDINVC }}" class="account-datalist"></datalist>
+                          <div class="beneficiary-account" data-vendor="{{ transaction.IDVEND }}" data-transaction="{{ transaction.IDINVC }}">
+                            <span class="account-loading text-muted">Loading...</span>
+                            <div class="account-details" style="display: none;">
+                              <input type="hidden" name="account_name" class="account-name-input">
+                              <input type="hidden" name="account_no" class="account-no-input">
+                              <input type="hidden" name="bank_code" class="bank-code-input">
+                              <input type="hidden" name="bank_name" class="bank-name-input">
+                              <span class="account-display small"></span>
+                            </div>
+                            <div class="account-error text-danger small" style="display: none;"></div>
+                          </div>
                         </td>
                         <td>
                           <button type="button" data-bs-toggle="modal" data-bs-target="#delete-transaction-modal-{{ transaction.IDINVC }}" class="btn btn-danger btn-sm">
@@ -143,37 +152,67 @@
   </div>
 </div>
 <script>
-// Live search for account numbers by account name (same as in table.html)
+// Automatically fetch beneficiary account details by vendor ID
 (function(){
-  function populateList(datalistEl, items){
-    while(datalistEl.firstChild){ datalistEl.removeChild(datalistEl.firstChild); }
-    items.forEach(function(it){
-      var opt = document.createElement('option');
-      opt.value = it.account_name;
-      opt.setAttribute('label', it.account_name + ' — ' + it.account_no);
-      opt.setAttribute('data-account-no', it.account_no);
-      opt.setAttribute('data-bank-code', it.bank_code || '');
-      opt.setAttribute('data-bank-name', it.bank_name || '');
-      opt.setAttribute('data-vendor-id', it.vendor_id || '');
-      datalistEl.appendChild(opt);
-    });
-  }
+  function loadBeneficiaryDetails(beneficiaryEl) {
+    const vendorId = beneficiaryEl.getAttribute('data-vendor');
+    const transactionId = beneficiaryEl.getAttribute('data-transaction');
+    
+    if (!vendorId) {
+      beneficiaryEl.querySelector('.account-loading').style.display = 'none';
+      beneficiaryEl.querySelector('.account-error').style.display = 'block';
+      beneficiaryEl.querySelector('.account-error').textContent = 'No vendor ID';
+      return;
+    }
 
-  function handleInput(e){
-    var input = e.target;
-    if(!input.classList.contains('account-live-input')) return;
-    var q = (input.value || '').trim();
-    if(q.length < 2) return;
-    var vendor = input.getAttribute('data-vendor') || '';
-    var listId = input.getAttribute('list');
-    var datalistEl = listId ? document.getElementById(listId) : null;
-    if(!datalistEl) return;
-    fetch('/bank_details/live-search/?q=' + encodeURIComponent(q) + (vendor ? ('&vendor_id=' + encodeURIComponent(vendor)) : ''))
+    fetch('/bank_details/beneficiary/?vendor_id=' + encodeURIComponent(vendorId))
       .then(function(r){ return r.json(); })
-      .then(function(data){ populateList(datalistEl, data.results || []); })
-      .catch(function(err){ console.warn('Live search error', err); });
+      .then(function(data){
+        const loadingEl = beneficiaryEl.querySelector('.account-loading');
+        const detailsEl = beneficiaryEl.querySelector('.account-details');
+        const errorEl = beneficiaryEl.querySelector('.account-error');
+        
+        loadingEl.style.display = 'none';
+        
+        if (data.error) {
+          errorEl.style.display = 'block';
+          errorEl.textContent = data.error;
+        } else {
+          // Populate hidden fields
+          detailsEl.querySelector('.account-name-input').value = data.account_name || '';
+          detailsEl.querySelector('.account-no-input').value = data.account_no || '';
+          detailsEl.querySelector('.bank-code-input').value = data.bank_code || '';
+          detailsEl.querySelector('.bank-name-input').value = data.bank_name || '';
+          
+          // Display account info
+          const displayText = `${data.account_name || 'N/A'} — ${data.account_no || 'N/A'} (${data.bank_name || 'N/A'})`;
+          detailsEl.querySelector('.account-display').textContent = displayText;
+          
+          detailsEl.style.display = 'block';
+        }
+      })
+      .catch(function(err){
+        console.warn('Beneficiary details error', err);
+        const loadingEl = beneficiaryEl.querySelector('.account-loading');
+        const errorEl = beneficiaryEl.querySelector('.account-error');
+        
+        loadingEl.style.display = 'none';
+        errorEl.style.display = 'block';
+        errorEl.textContent = 'Failed to load account details';
+      });
   }
 
-  document.addEventListener('input', handleInput, true);
+  // Load beneficiary details for all rows on page load
+  function loadAllBeneficiaryDetails() {
+    const beneficiaryEls = document.querySelectorAll('.beneficiary-account');
+    beneficiaryEls.forEach(loadBeneficiaryDetails);
+  }
+
+  // Load when DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', loadAllBeneficiaryDetails);
+  } else {
+    loadAllBeneficiaryDetails();
+  }
 })();
 </script>
