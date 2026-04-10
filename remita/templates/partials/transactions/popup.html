@@ -5,19 +5,27 @@
             <div class="modal-header border-bottom bg-light">
                 <h5 class="modal-title fw-semibold text-dark" id="exampleModalLongTitle" style="font-family: 'Roboto Slab', serif;">
                     <i class="bi bi-receipt me-2" style="color: #183660;"></i>Selected Transactions
+                    <span id="modal-transaction-count" class="badge bg-info ms-2">0</span>
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-4">
+                <!-- Alert for validation messages -->
+                <div id="modal-alert" class="alert d-none" role="alert">
+                    <i id="alert-icon" class="bi me-2"></i>
+                    <span id="alert-message"></span>
+                </div>
+
                 <!-- Source Bank Selection -->
                 <div class="card border-0 bg-light mb-4">
                     <div class="card-body">
                         <div class="row g-3">
                             <div class="col-md-6">
-                                <label for="source-bank-select" class="form-label fw-medium text-secondary small">
-                                    <i class="bi bi-bank me-1"></i>Source Bank Account
+                                <label for="source-bank-select" class="form-label fw-medium text-dark">
+                                    <i class="bi bi-bank me-1" style="color: #183660;"></i>Source Bank Account
+                                    <span class="text-danger">*</span>
                                 </label>
-                                <select id="source-bank-select" class="form-select shadow-sm border-0">
+                                <select id="source-bank-select" class="form-select shadow-sm border-0" required>
                                     {% if source_banks %}
                                         <option value="" disabled selected>Select source account...</option>
                                         {% for sb in source_banks %}
@@ -35,8 +43,8 @@
                 <!-- Batch Information -->
                 <div class="card border-0 bg-light mb-4">
                     <div class="card-body">
-                        <h6 class="card-subtitle mb-3 text-muted fw-medium">
-                            <i class="bi bi-folder me-1"></i>Batch Information
+                        <h6 class="card-subtitle mb-3 text-dark fw-semibold">
+                            <i class="bi bi-folder me-1" style="color: #183660;"></i>Batch Information
                         </h6>
                         <div class="row g-3">
                             <div class="col-md-4">
@@ -44,7 +52,7 @@
                                 <input type="text" id="batch-ref-input" class="form-control shadow-sm border-0 bg-white" placeholder="Will be auto-generated" readonly>
                             </div>
                             <div class="col-md-8">
-                                <label for="batch-desc-input" class="form-label fw-medium text-secondary small">Batch Description</label>
+                                <label for="batch-desc-input" class="form-label fw-medium text-secondary small">Batch Description (Optional)</label>
                                 <input type="text" id="batch-desc-input" class="form-control shadow-sm border-0" placeholder="Enter optional description for this batch">
                             </div>
                         </div>
@@ -52,35 +60,358 @@
                 </div>
 
                 <!-- Transactions Table -->
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th scope="col" class="fw-semibold text-secondary small">Date</th>
-                                <th scope="col" class="fw-semibold text-secondary small">Amount</th>
-                                <th scope="col" class="fw-semibold text-secondary small">Payment Number</th>
-                                <th scope="col" class="fw-semibold text-secondary small">Remarks</th>
-                                <th scope="col" class="fw-semibold text-secondary small">Beneficiary ID</th>
-                                <th scope="col" class="fw-semibold text-secondary small">Beneficiary Name</th>
-                                <th scope="col" class="fw-semibold text-secondary small">Beneficiary Account</th>
-                                <th scope="col" class="fw-semibold text-secondary small">Bank Code</th>
-                                <th scope="col" class="fw-semibold text-secondary small">Bank Name</th>
-                            </tr>
-                        </thead>
-                        <tbody id="modal-table-body">
-                        <!--Transactions to be posted will be dynamically added here-->
-                        </tbody>
-                    </table>
+                <div class="card border-0 mb-4">
+                    <div class="card-header bg-light border-bottom">
+                        <h6 class="mb-0 fw-semibold text-dark">
+                            <i class="bi bi-list-check me-2" style="color: #183660;"></i>
+                            Transactions to Process
+                            <span id="table-transaction-count" class="badge bg-secondary ms-2">0</span>
+                        </h6>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th scope="col" class="fw-semibold text-secondary small" style="width: 12%;">Date</th>
+                                    <th scope="col" class="fw-semibold text-secondary small" style="width: 10%;">Amount</th>
+                                    <th scope="col" class="fw-semibold text-secondary small" style="width: 12%;">Payment Number</th>
+                                    <th scope="col" class="fw-semibold text-secondary small" style="width: 12%;">Remarks</th>
+                                    <th scope="col" class="fw-semibold text-secondary small" style="width: 10%;">Beneficiary ID</th>
+                                    <th scope="col" class="fw-semibold text-secondary small" style="width: 14%;">Beneficiary Name</th>
+                                    <th scope="col" class="fw-semibold text-secondary small" style="width: 14%;">Account</th>
+                                    <th scope="col" class="fw-semibold text-secondary small" style="width: 8%;">Bank Code</th>
+                                    <th scope="col" class="fw-semibold text-secondary small" style="width: 8%;">Bank Name</th>
+                                </tr>
+                            </thead>
+                            <tbody id="modal-table-body">
+                                <!--Transactions to be posted will be dynamically added here-->
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer border-top bg-light">
                 <button type="button" class="btn btn-light border shadow-sm" data-bs-dismiss="modal" aria-label="Close">
                     <i class="bi bi-x-circle me-1"></i>Close
                 </button>
-                <button type="button" id="modal-submit-btn" class="btn text-white shadow-sm" style="background-color: #183660;">
-                    <i class="bi bi-check-circle me-1"></i>Post Transactions
+                <button type="button" id="modal-submit-btn" class="btn text-white shadow-lg fw-semibold" 
+                        style="background-color: #183660; transition: all 0.3s ease;">
+                    <i class="bi bi-check-circle me-2"></i>
+                    <span id="submit-btn-text">Post Transactions</span>
+                    <span id="submit-spinner" class="spinner-border spinner-border-sm ms-2 d-none" role="status" aria-hidden="true"></span>
                 </button>
             </div>
         </div>
     </div>
 </div>
+
+<style>
+/* Modal styling enhancements */
+#post-transaction-modal .modal-content {
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+#post-transaction-modal .modal-header {
+    padding: 1.5rem;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+}
+
+#post-transaction-modal .modal-body {
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+/* ─── Modal Content Styling ────────────────────────────────────– */
+.modal-content {
+  border-radius: 12px !important;
+  border: 1px solid #e5e7eb !important;
+  box-shadow: 0 20px 25px rgba(0, 0, 0, 0.15) !important;
+}
+
+.modal-header {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%) !important;
+  border-bottom: 2px solid #e5e7eb !important;
+  border-radius: 12px 12px 0 0 !important;
+  padding: 20px !important;
+}
+
+.modal-title {
+  color: #183660 !important;
+  font-size: 1.25rem !important;
+  letter-spacing: 0.3px !important;
+}
+
+.modal-footer {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%) !important;
+  border-top: 2px solid #e5e7eb !important;
+  border-radius: 0 0 12px 12px !important;
+  padding: 16px 20px !important;
+  gap: 10px !important;
+}
+
+/* ─── Submit Button Styling ────────────────────────────────────── */
+#modal-submit-btn {
+    background: linear-gradient(135deg, #183660 0%, #0f1f35 100%) !important;
+    border: none !important;
+    box-shadow: 0 4px 12px rgba(24, 54, 96, 0.25) !important;
+    padding: 10px 20px !important;
+    border-radius: 50px !important;
+    font-weight: 600 !important;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+
+#modal-submit-btn:hover:not(:disabled) {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 20px rgba(24, 54, 96, 0.35) !important;
+    background: linear-gradient(135deg, #1f4270 0%, #162841 100%) !important;
+}
+
+#modal-submit-btn:active:not(:disabled) {
+    transform: translateY(0) !important;
+    box-shadow: 0 2px 8px rgba(24, 54, 96, 0.2) !important;
+}
+
+#modal-submit-btn:disabled {
+    opacity: 0.6 !important;
+    cursor: not-allowed !important;
+}
+
+#modal-submit-btn:focus-visible {
+  outline: 2px solid #183660 !important;
+  outline-offset: 2px !important;
+}
+
+/* ─── Alert Styling ────────────────────────────────────────────── */
+#modal-alert {
+    border-radius: 8px !important;
+    border-left: 4px solid currentColor !important;
+    padding: 12px 16px !important;
+    display: flex !important;
+    align-items: center !important;
+    font-size: 0.95rem !important;
+    transition: all 0.3s ease !important;
+}
+
+#modal-alert.alert-success {
+    background-color: #dcfce7 !important;
+    border-left-color: #22c55e !important;
+    color: #166534 !important;
+}
+
+#modal-alert.alert-danger {
+    background-color: #fee2e2 !important;
+    border-left-color: #ef4444 !important;
+    color: #991b1b !important;
+}
+
+#modal-alert.alert-warning {
+    background-color: #fef3c7 !important;
+    border-left-color: #f59e0b !important;
+    color: #92400e !important;
+}
+
+#alert-icon {
+  font-size: 1.25rem !important;
+  margin-right: 10px !important;
+  flex-shrink: 0 !important;
+}
+
+/* ─── Form Controls ────────────────────────────────────────────── */
+.form-select, .form-control {
+  border-radius: 8px !important;
+  border: 1px solid #e5e7eb !important;
+  transition: all 0.2s ease !important;
+}
+
+.form-select:focus, .form-control:focus {
+  border-color: #183660 !important;
+  box-shadow: 0 0 0 3px rgba(24, 54, 96, 0.1) !important;
+  outline: none !important;
+}
+
+/* ─── Badge Styling ────────────────────────────────────────────── */
+.badge {
+    font-size: 0.9rem !important;
+    padding: 4px 12px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.2px !important;
+    border-radius: 12px !important;
+}
+
+.badge-info {
+  background-color: #0284c7 !important;
+  color: white !important;
+}
+
+.badge-secondary {
+  background-color: #6b7280 !important;
+  color: white !important;
+}
+
+/* ─── Transaction Count Badge ──────────────────────────────────– */
+#modal-transaction-count,
+#table-transaction-count {
+    font-weight: bold !important;
+    font-size: 0.9rem !important;
+}
+
+/* ─── Card Styling ─────────────────────────────────────────────── */
+.card {
+  border-radius: 10px !important;
+  border: 1px solid #e5e7eb !important;
+  transition: all 0.3s ease !important;
+}
+
+.card-header {
+  background-color: #f8fafc !important;
+  border-bottom: 1px solid #e5e7eb !important;
+  border-radius: 10px 10px 0 0 !important;
+  padding: 16px 20px !important;
+}
+
+.card-body {
+  padding: 20px !important;
+}
+
+.card-subtitle {
+  color: #475569 !important;
+  font-weight: 600 !important;
+}
+
+/* ─── Table Styling ────────────────────────────────────────────– */
+
+@media (max-width: 768px) {
+    #post-transaction-modal .modal-body {
+        max-height: 50vh;
+    }
+    
+    #post-transaction-modal .table {
+        font-size: 0.875rem;
+    }
+}
+</style>
+
+<script>
+// Handle modal population with selected transactions and validation
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('post-transaction-modal');
+    const modalTableBody = document.getElementById('modal-table-body');
+    const modalSubmitBtn = document.getElementById('modal-submit-btn');
+    const batchRefInput = document.getElementById('batch-ref-input');
+    const batchDescInput = document.getElementById('batch-desc-input');
+    const sourceBankSelect = document.getElementById('source-bank-select');
+    const modalAlert = document.getElementById('modal-alert');
+    const alertIcon = document.getElementById('alert-icon');
+    const alertMessage = document.getElementById('alert-message');
+    const modalTransactionCount = document.getElementById('modal-transaction-count');
+    const tableTransactionCount = document.getElementById('table-transaction-count');
+    const submitBtnText = document.getElementById('submit-btn-text');
+    const submitSpinner = document.getElementById('submit-spinner');
+    
+    function showAlert(message, type = 'danger') {
+        modalAlert.classList.remove('d-none', 'alert-success', 'alert-danger', 'alert-warning');
+        modalAlert.classList.add(`alert-${type}`);
+        
+        // Set icon based on type
+        alertIcon.className = 'bi me-2';
+        if (type === 'success') {
+            alertIcon.classList.add('bi-check-circle-fill');
+        } else if (type === 'danger') {
+            alertIcon.classList.add('bi-exclamation-circle-fill');
+        } else if (type === 'warning') {
+            alertIcon.classList.add('bi-exclamation-triangle-fill');
+        }
+        
+        alertMessage.textContent = message;
+    }
+    
+    function hideAlert() {
+        modalAlert.classList.add('d-none');
+    }
+    
+    if (modal) {
+        modal.addEventListener('show.bs.modal', function(event) {
+            hideAlert();
+            modalTableBody.innerHTML = '';
+            
+            // Get all checked checkboxes
+            const checkedCheckboxes = document.querySelectorAll('.transaction-checkbox:checked');
+            
+            if (checkedCheckboxes.length === 0) {
+                modalTableBody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4"><i class="bi bi-inbox me-2"></i>No transactions selected</td></tr>';
+                modalTransactionCount.textContent = '0';
+                tableTransactionCount.textContent = '0';
+                return;
+            }
+            
+            // Populate modal table with selected transactions
+            const transactionRows = document.querySelectorAll('.transaction-row');
+            let selectedCount = 0;
+            
+            transactionRows.forEach(row => {
+                const checkbox = row.querySelector('.transaction-checkbox');
+                if (checkbox && checkbox.checked) {
+                    const cells = row.querySelectorAll('td');
+                    const modalRow = document.createElement('tr');
+                    
+                    // Copy all cells except checkbox column and actions column
+                    for (let i = 1; i < cells.length; i++) {
+                        if (i !== cells.length - 1) { // Skip actions column
+                            const cell = cells[i];
+                            const newCell = document.createElement('td');
+                            newCell.textContent = cell.textContent.trim();
+                            newCell.className = 'small';
+                            modalRow.appendChild(newCell);
+                        }
+                    }
+                    
+                    modalTableBody.appendChild(modalRow);
+                    selectedCount++;
+                }
+            });
+            
+            // Update transaction counts
+            modalTransactionCount.textContent = selectedCount;
+            tableTransactionCount.textContent = selectedCount;
+            
+            // Generate batch reference if empty
+            if (!batchRefInput.value) {
+                const timestamp = new Date().toISOString().replace(/[-T:.Z]/g, '').slice(0, 14);
+                const randomStr = Math.random().toString(36).substring(2, 8).toUpperCase();
+                batchRefInput.value = `BR-${timestamp}-${randomStr}`;
+            }
+        });
+    }
+    
+    // Handle submit button click
+    if (modalSubmitBtn) {
+        modalSubmitBtn.addEventListener('click', function(e) {
+            // Validation: Check if source bank is selected
+            if (!sourceBankSelect.value) {
+                showAlert('Please select a source bank account before processing', 'warning');
+                sourceBankSelect.focus();
+                return;
+            }
+            
+            // Show loading state
+            submitBtnText.textContent = 'Processing...';
+            submitSpinner.classList.remove('d-none');
+            modalSubmitBtn.disabled = true;
+            
+            // Simulate processing (replace with actual API call)
+            setTimeout(function() {
+                showAlert('Transactions posted successfully!', 'success');
+                submitBtnText.textContent = 'Post Transactions';
+                submitSpinner.classList.add('d-none');
+                modalSubmitBtn.disabled = false;
+                
+                // Close modal after 2 seconds
+                setTimeout(function() {
+                    bootstrap.Modal.getInstance(modal).hide();
+                }, 2000);
+            }, 1500);
+        });
+    }
+});
+</script>

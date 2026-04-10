@@ -1,7 +1,12 @@
-const processBtn = document.getElementById('process-btn')
+// ─────────────────────────────────────────────────────────────
+// TRANSACTION PROCESSING MODULE - Enhanced Version
+// ─────────────────────────────────────────────────────────────
+
+// DOM Element References
+const processBtn = document.getElementById('process-btn');
 const searchBtn = document.getElementById('search-button');
 const modalSubmitBtn = document.getElementById('modal-submit-btn');
-const loader = document.getElementById('spinner')
+const loader = document.getElementById('spinner');
 const rows = document.querySelectorAll('.transaction-table-body tr');
 const checkboxes = document.querySelectorAll('input[type="checkbox"]');
 const searchInput = document.getElementById('search-input');
@@ -9,6 +14,7 @@ const filterOptions = document.getElementById('filter-options');
 const startDateInput = document.getElementById('datepicker1');
 const endDateInput = document.getElementById('datepicker2');
 
+// State Management
 var isScrolledToTop = true;
 let isStartDateEmpty = true;
 let isEndDateEmpty = true;
@@ -19,9 +25,12 @@ let hasClickedOnSearchBtn = false;
 let query_params = [];
 let selectedTransactionType = {};
 
-
+// Combined transaction data for submission
 let combinedValues = [];
 sessionStorage.clear();
+
+// ─── Initialize Event Listeners ────────────────────────────────
+// Called on document load to set up all event handlers
 
 addCheckBoxandSelectValues(rows);
 addEventListenerToCheckboxes(checkboxes);
@@ -38,15 +47,11 @@ function addEventListenersToSelect(rows) {
                 const inputElement = trow.querySelector('input[name="transaction"]');
                 const value = inputElement.value;
                 if (accountName) {
-                    if (value) {
-                        inputElement.removeAttribute('disabled');
-                    } else {
-                        inputElement.setAttribute('disabled', 'disabled');
-                    }
+                    // Store account name in session, but don't disable checkbox
                     sessionStorage.setItem("accountName-" + value, accountName);
                 } else {
+                    // Remove from storage, but don't disable checkbox
                     sessionStorage.removeItem("accountName-" + value);
-                    inputElement.setAttribute('disabled', 'disabled');
                 }
             });
         });
@@ -67,10 +72,10 @@ function addCheckBoxandSelectValues(rows) {
                     if (checkbox) {
                         inputElement.checked = true;
                     }
-                    inputElement.removeAttribute('disabled');
+                    // Checkboxes are now always enabled - no need to removeAttribute
                 } else {
                     acctInput.value = '';
-                    inputElement.setAttribute('disabled', 'disabled');
+                    // Checkboxes are now always enabled - no need to setAttribute disabled
                 }
             }
         }
@@ -321,7 +326,7 @@ function fetchSearchResults(queryParams, page) {
     const searchInput = queryParams[0];
     const filterOptions = queryParams[1];
 
-    fetch(`search/?search_params=${searchInput}&filter_options=${filterOptions}&page=${page}`)
+    fetch(`/remita/search/?search_params=${searchInput}&filter_options=${filterOptions}&page=${page}`)
         .then(response => response.text())
         .then(html => {
             // Parse the HTML response
@@ -439,28 +444,51 @@ function firstPageLink(firstLink) {
 }
 
 // Generate a batch reference (JS-side) when the modal is about to show
+// Format: BR-<yyyymmddhhmmss>-<random>
 function generateBatchRef() {
     const ts = new Date().toISOString().replace(/[-T:.Z]/g, '').slice(0, 14); // yyyymmddhhmmss
     const rand = Math.random().toString(36).slice(2, 8).toUpperCase();
     return `BR-${ts}-${rand}`;
 }
 
+// ─── Modal Event Handlers ──────────────────────────────────────
 // Hook into Bootstrap modal show/hide to set/reset values
 $(document).ready(function () {
     const $modal = $('#post-transaction-modal');
     if ($modal.length) {
         $modal.on('show.bs.modal', function () {
-            // Auto-generate and set batch reference
-            const ref = generateBatchRef();
-            $('#batch-ref-input').val(ref);
-            $('#batch-desc-input').val('');
-            // Refresh the table content in the modal
-            createModalTableBody('modal-table-body');
+            try {
+                // Auto-generate and set batch reference
+                const ref = generateBatchRef();
+                $('#batch-ref-input').val(ref);
+                $('#batch-desc-input').val('');
+                
+                // Update transaction count display
+                const count = combinedValues.length;
+                $('#modal-transaction-count').text(count).attr('aria-label', `${count} transactions selected`);
+                
+                // Refresh the table content in the modal
+                createModalTableBody('modal-table-body');
+                
+                // Update transaction count in table footer if needed
+                $('#table-transaction-count').text(count);
+                
+                console.log(`Modal opened with ${count} transactions`);
+            } catch (err) {
+                console.error('Error initializing modal:', err);
+                showAlert('Error loading modal. Please try again.', 'danger');
+            }
         });
+        
         $modal.on('hidden.bs.modal', function () {
-            // Reset values when modal is closed
-            $('#batch-ref-input').val('');
-            $('#batch-desc-input').val('');
+            try {
+                // Reset values when modal is closed
+                $('#batch-ref-input').val('');
+                $('#batch-desc-input').val('');
+                $('#modal-alert').addClass('d-none');
+            } catch (err) {
+                console.error('Error resetting modal:', err);
+            }
         });
     }
 });
@@ -468,50 +496,72 @@ $(document).ready(function () {
 if (processBtn){
     processBtn.addEventListener('click', (e) => {
         e.preventDefault();
-        // Table body will also be created on show event, but we keep this for safety
-        createModalTableBody('modal-table-body');
+        try {
+            // Table body will also be created on show event, but we keep this for safety
+            createModalTableBody('modal-table-body');
+            console.log('Process button clicked - modal body created');
+        } catch (err) {
+            console.error('Error creating modal table body:', err);
+            alert('Error preparing modal. Please try again.');
+        }
     });
 }
+
+// ─── Modal Submit Handler ──────────────────────────────────────
+// Handles transaction submission with validation and error handling
 if (modalSubmitBtn){
     modalSubmitBtn.addEventListener('click', (e) => {
-        loader.classList.remove('d-none')
-        e.preventDefault()
-        // Always generate a fresh batch reference at submission time to avoid reuse on retries
-        const freshBatchRef = generateBatchRef();
-        if (document.getElementById('batch-ref-input')) {
-            document.getElementById('batch-ref-input').value = freshBatchRef;
-        }
-        const batchRef = freshBatchRef;
-        const batchDesc = document.getElementById('batch-desc-input') ? document.getElementById('batch-desc-input').value : '';
+        try {
+            // Show loading state
+            loader.classList.remove('d-none');
+            e.preventDefault();
+            
+            // Validate that we have transactions to submit
+            if (!combinedValues || combinedValues.length === 0) {
+                console.warn('No transactions selected for submission');
+                alert('No transactions selected. Please select at least one transaction.');
+                loader.classList.add('d-none');
+                return;
+            }
+            
+            // Always generate a fresh batch reference at submission time to avoid reuse on retries
+            const freshBatchRef = generateBatchRef();
+            if (document.getElementById('batch-ref-input')) {
+                document.getElementById('batch-ref-input').value = freshBatchRef;
+            }
+            const batchRef = freshBatchRef;
+            const batchDesc = document.getElementById('batch-desc-input') ? document.getElementById('batch-desc-input').value : '';
 
-        // Build unique transaction references per item for this submission only
-        const txRefsMap = {};
-        const ts = new Date().toISOString().replace(/[-T:.Z]/g, '').slice(0, 14);
-        const baseRand = Math.random().toString(36).slice(2, 8).toUpperCase();
-        combinedValues.forEach((item, idx) => {
-            try {
-                const invoiceId = item && item.values ? item.values[2] : `IDX${idx}`;
-                // TR-<timestamp>-<rand>-<seq>
-                txRefsMap[invoiceId] = `TR-${ts}-${baseRand}-${(idx+1).toString().padStart(3,'0')}`;
-            } catch (_) {}
-        });
+            // Build unique transaction references per item for this submission only
+            const txRefsMap = {};
+            const ts = new Date().toISOString().replace(/[-T:.Z]/g, '').slice(0, 14);
+            const baseRand = Math.random().toString(36).slice(2, 8).toUpperCase();
+            combinedValues.forEach((item, idx) => {
+                try {
+                    const invoiceId = item && item.values ? item.values[2] : `IDX${idx}`;
+                    // TR-<timestamp>-<rand>-<seq>
+                    txRefsMap[invoiceId] = `TR-${ts}-${baseRand}-${(idx+1).toString().padStart(3,'0')}`;
+                } catch (_) {}
+            });
+            
+            console.log(`Submitting ${combinedValues.length} transactions with batch ref: ${batchRef}`);
 
-        // Send selected invoice numbers & transaction type to server using ajax
-        $.ajax({
-            type: 'POST',
-            url: 'post-transactions/',
-            data: {
-                'csrfmiddlewaretoken': getCSRFToken(),
-                'transactions': JSON.stringify(combinedValues),
-                'invoice_ids[]': JSON.stringify(selectedVendorsInvoiceNumber),
-                'transaction_type': JSON.stringify(selectedTransactionType),
-                'batch_ref': batchRef,
-                'narration': batchDesc,
-                'transaction_refs': JSON.stringify(txRefsMap),
-                                'source_bank_id': (function(){ var el = document.getElementById('source-bank-select'); return el ? el.value : ''; })()
-            },
-            dataType: 'json',
-        })
+            // Send selected invoice numbers & transaction type to server using ajax
+            $.ajax({
+                type: 'POST',
+                url: '/remita/post-transactions/',
+                data: {
+                    'csrfmiddlewaretoken': getCSRFToken(),
+                    'transactions': JSON.stringify(combinedValues),
+                    'invoice_ids[]': JSON.stringify(selectedVendorsInvoiceNumber),
+                    'transaction_type': JSON.stringify(selectedTransactionType),
+                    'batch_ref': batchRef,
+                    'narration': batchDesc,
+                    'transaction_refs': JSON.stringify(txRefsMap),
+                    'source_bank_id': (function(){ var el = document.getElementById('source-bank-select'); return el ? el.value : ''; })()
+                },
+                dataType: 'json',
+            })
         .done(res => {
             loader.classList.add('d-none');
             $('#post-transaction-modal').modal('hide');
@@ -569,6 +619,16 @@ if (modalSubmitBtn){
                 footer: 'Try again later'
             });
         });
+        } catch (err) {
+            console.error('Error submitting transactions:', err);
+            loader.classList.add('d-none');
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'An error occurred while submitting transactions. Please try again.',
+                confirmButtonText: 'OK'
+            });
+        }
     });
 }
 
@@ -600,3 +660,4 @@ if (filterOptions){
     });
     
 }
+

@@ -17,11 +17,15 @@
     </div>
     <div class="col pt-2">
       <div class="text-end">
-        {% if request.path == '/dashboard' %}
-          <button type="button" style="background-color: #183660; border-radius:50px;padding:8px "
-                  class="btn mt-1 text-white text-left"
+        {% if 'dashboard' in request.path %}
+          <button type="button"
+                  class="btn mt-1 text-white fw-semibold"
                   data-bs-toggle="modal"
-                  data-bs-target="#post-transaction-modal" id="process-btn" disabled>Process Selected Transaction(s)
+                  data-bs-target="#post-transaction-modal"
+                  id="process-btn"
+                  disabled>
+            <i class="bi bi-check2-square me-2"></i>
+            Process Selected Transaction(s)
           </button>
         {% endif %}
       </div>
@@ -55,9 +59,9 @@
                   </thead>
                   <tbody id="table-body-{{ group.alias }}" class="transaction-table-body" data-project-id="{{ group.project_id }}" data-project-name="{{ group.display_name }}" data-project-code="{{ group.alias }}">
                     {% for transaction in group.transactions %}
-                      <tr id="{{ transaction.IDINVC }}">
+                      <tr id="{{ transaction.IDINVC }}" class="transaction-row">
                         <td>
-                          <input type="checkbox" name="transaction" value="{{ transaction.IDINVC }}" disabled>
+                          <input type="checkbox" name="transaction" class="form-check-input transaction-checkbox" value="{{ transaction.IDINVC }}" data-transaction-id="{{ transaction.id }}">
                         </td>
                         <td>{{ transaction.DATERMIT }}</td>
                         <td>{{ transaction.AMTPAYM }}</td>
@@ -142,6 +146,145 @@
     {% endif %}
   </div>
 </div>
+
+<style>
+/* Process Button Styling */
+#process-btn {
+  background: linear-gradient(135deg, #183660 0%, #0f1f35 100%) !important;
+  border: none !important;
+  box-shadow: 0 4px 15px rgba(24, 54, 96, 0.3) !important;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  padding: 10px 20px !important;
+  border-radius: 8px !important;
+}
+
+#process-btn:not(:disabled):hover {
+  background: linear-gradient(135deg, #1f4270 0%, #162841 100%) !important;
+  transform: translateY(-3px) !important;
+  box-shadow: 0 8px 25px rgba(24, 54, 96, 0.4) !important;
+}
+
+#process-btn:not(:disabled):active {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 15px rgba(24, 54, 96, 0.3) !important;
+}
+
+#process-btn:disabled {
+  background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%) !important;
+  cursor: not-allowed !important;
+  opacity: 0.65 !important;
+}
+
+#process-btn:focus-visible {
+  outline: 2px solid #183660 !important;
+  outline-offset: 2px !important;
+}
+
+/* Search Bar Styling */
+.search-bar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.search-bar select,
+.search-bar input {
+  padding: 10px 12px !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 8px !important;
+  font-size: 0.95rem !important;
+}
+
+.search-bar input {
+  flex: 1;
+  background-color: #f9fafb !important;
+}
+
+.search-bar input:focus {
+  background-color: #ffffff !important;
+  border-color: #183660 !important;
+  box-shadow: 0 0 0 3px rgba(24, 54, 96, 0.1) !important;
+}
+
+.search-bar button {
+  padding: 10px 20px !important;
+  background: linear-gradient(135deg, #183660 0%, #0f1f35 100%) !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 8px !important;
+  cursor: pointer !important;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+
+.search-bar button:hover {
+  background: linear-gradient(135deg, #1f4270 0%, #162841 100%) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 4px 12px rgba(24, 54, 96, 0.2) !important;
+}
+
+/* Accordion Styling */
+.accordion-item {
+  border: 1px solid #e5e7eb !important;
+  border-radius: 8px !important;
+  background-color: #ffffff !important;
+}
+
+.accordion-button {
+  padding: 15px 20px !important;
+  font-weight: 500 !important;
+  color: #183660 !important;
+  background-color: #f9fafb !important;
+  transition: all 0.3s ease !important;
+}
+
+.accordion-button:hover:not(.collapsed) {
+  background-color: #f3f4f6 !important;
+}
+
+.accordion-button:not(.collapsed) {
+  background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%) !important;
+  color: #183660 !important;
+  box-shadow: inset 0 -1px 0 0 rgba(24, 54, 96, 0.1) !important;
+}
+
+.accordion-button::after {
+  background-color: #183660 !important;
+}
+
+/* Table Styling */
+.transaction-table-body tr.transaction-row:hover {
+  background-color: #f9fafb !important;
+  border-left: 3px solid #183660 !important;
+}
+
+.transaction-table-body input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+}
+
+.transaction-table-body input[type="checkbox"]:checked {
+  background-color: #183660 !important;
+  border-color: #183660 !important;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  #process-btn {
+    padding: 8px 16px !important;
+    font-size: 0.9rem !important;
+  }
+
+  .search-bar {
+    flex-direction: column;
+  }
+
+  .search-bar input {
+    width: 100% !important;
+  }
+}
+</style>
+
 <script>
 // Live search for account numbers by account name (same as in table.html)
 (function(){
@@ -177,3 +320,29 @@
   document.addEventListener('input', handleInput, true);
 })();
 </script>
+<script>
+// Handle checkbox selection and process button state for accordion
+document.addEventListener('DOMContentLoaded', function() {
+    const processBtn = document.getElementById('process-btn');
+    const transactionCheckboxes = document.querySelectorAll('.transaction-checkbox');
+    
+    // Function to update button state based on checked checkboxes
+    function updateButtonState() {
+        const checkedCount = document.querySelectorAll('.transaction-checkbox:checked').length;
+        if (processBtn) {
+            processBtn.disabled = checkedCount === 0;
+        }
+    }
+    
+    // Handle individual checkbox changes
+    transactionCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            updateButtonState();
+        });
+    });
+    
+    // Initialize button state
+    updateButtonState();
+});
+</script>
+

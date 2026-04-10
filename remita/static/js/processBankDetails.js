@@ -172,7 +172,7 @@ function handleAccInputBlur(accountNo) {
                     accountname.value = ''
                     branchNameInput.value = ''
                     bankNameInput.value = ''
-                    submitBtn.setAttribute('disabled','disabled')
+                    // Button remains enabled for user interaction
                 }})
             }
             
@@ -194,7 +194,7 @@ function handleAccInputBlur(accountNo) {
                     accountname.value = ''
                     branchNameInput.value = ''
                     bankNameInput.value = ''
-                    submitBtn.setAttribute('disabled','disabled')
+                    // Button remains enabled for user interaction
                 }})
             }
             else
@@ -249,11 +249,12 @@ function loadBankList() {
 }
 
 function addBankServiceID(bank) {
-    if (selectedBank === []) {
+    if (selectedBank.length === 0) {
         selectedBank.push(bank)
     } else {
         selectedBank[0] = bank
     }
 }
+
 
 
