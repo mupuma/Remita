@@ -154,6 +154,16 @@
 <script>
 // Automatically fetch beneficiary account details by vendor ID
 (function(){
+  function enableCheckboxForTransaction(transactionId) {
+    const row = document.getElementById(transactionId);
+    if (row) {
+      const checkbox = row.querySelector('input[name="transaction"]');
+      if (checkbox) {
+        checkbox.removeAttribute('disabled');
+      }
+    }
+  }
+
   function loadBeneficiaryDetails(beneficiaryEl) {
     const vendorId = beneficiaryEl.getAttribute('data-vendor');
     const transactionId = beneficiaryEl.getAttribute('data-transaction');
@@ -165,7 +175,7 @@
       return;
     }
 
-    fetch('/bank_details/beneficiary/?vendor_id=' + encodeURIComponent(vendorId))
+    fetch('/remita/bank_details/beneficiary/?vendor_id=' + encodeURIComponent(vendorId))
       .then(function(r){ return r.json(); })
       .then(function(data){
         const loadingEl = beneficiaryEl.querySelector('.account-loading');
@@ -189,6 +199,9 @@
           detailsEl.querySelector('.account-display').textContent = displayText;
           
           detailsEl.style.display = 'block';
+          
+          // Enable the checkbox for this transaction since we have valid beneficiary details
+          enableCheckboxForTransaction(transactionId);
         }
       })
       .catch(function(err){

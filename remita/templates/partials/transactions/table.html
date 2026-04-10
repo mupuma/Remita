@@ -257,6 +257,16 @@
 <script>
 // Automatically fetch beneficiary account details by vendor ID
 (function(){
+  function enableCheckboxForTransaction(transactionId) {
+    const row = document.getElementById(transactionId);
+    if (row) {
+      const checkbox = row.querySelector('input[name="transaction"]');
+      if (checkbox) {
+        checkbox.removeAttribute('disabled');
+      }
+    }
+  }
+
   function loadBeneficiaryDetails(beneficiaryEl) {
     const vendorId = beneficiaryEl.getAttribute('data-vendor');
     const transactionId = beneficiaryEl.getAttribute('data-transaction');
@@ -268,9 +278,18 @@
       return;
     }
 
-    fetch('/bank_details/beneficiary/?vendor_id=' + encodeURIComponent(vendorId))
-      .then(function(r){ return r.json(); })
+    console.log('Fetching beneficiary details for vendor:', vendorId);
+    const url = '/remita/bank_details/beneficiary/?vendor_id=' + encodeURIComponent(vendorId);
+    console.log('Request URL:', url);
+    
+    fetch(url)
+      .then(function(r){ 
+        console.log('Response status:', r.status);
+        console.log('Response headers:', r.headers);
+        return r.json(); 
+      })
       .then(function(data){
+        console.log('Response data:', data);
         const loadingEl = beneficiaryEl.querySelector('.account-loading');
         const detailsEl = beneficiaryEl.querySelector('.account-details');
         const errorEl = beneficiaryEl.querySelector('.account-error');
@@ -292,16 +311,20 @@
           detailsEl.querySelector('.account-display').textContent = displayText;
           
           detailsEl.style.display = 'block';
+          
+          // Enable the checkbox for this transaction since we have valid beneficiary details
+          enableCheckboxForTransaction(transactionId);
         }
       })
       .catch(function(err){
-        console.warn('Beneficiary details error', err);
+        console.error('Beneficiary details error:', err);
+        console.error('Error details:', err.message, err.stack);
         const loadingEl = beneficiaryEl.querySelector('.account-loading');
         const errorEl = beneficiaryEl.querySelector('.account-error');
         
         loadingEl.style.display = 'none';
         errorEl.style.display = 'block';
-        errorEl.textContent = 'Failed to load account details';
+        errorEl.textContent = 'Failed to load account details: ' + err.message;
       });
   }
 

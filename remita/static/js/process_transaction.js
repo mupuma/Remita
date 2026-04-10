@@ -58,18 +58,20 @@ function addCheckBoxandSelectValues(rows) {
         if (row.id) {
             const value = row.id;
             const inputElement = row.querySelector('input[name="transaction"]');
-            const acctInput = row.querySelector('.account-live-input');
-            const accountName = sessionStorage.getItem("accountName-" + value);
-            const checkbox = sessionStorage.getItem(value)
-            if (acctInput) {
-                if (accountName) {
-                    acctInput.value = accountName;
+            const checkbox = sessionStorage.getItem(value);
+            
+            // Enable/disable checkbox based on whether beneficiary details are available
+            const beneficiaryEl = row.querySelector('.beneficiary-account');
+            if (beneficiaryEl) {
+                const accountNameInput = beneficiaryEl.querySelector('.account-name-input');
+                const hasAccountDetails = accountNameInput && accountNameInput.value;
+                
+                if (hasAccountDetails) {
                     if (checkbox) {
                         inputElement.checked = true;
                     }
                     inputElement.removeAttribute('disabled');
                 } else {
-                    acctInput.value = '';
                     inputElement.setAttribute('disabled', 'disabled');
                 }
             }
@@ -106,32 +108,32 @@ function addEventListenerToCheckboxes(checkboxes) {
                         continue;
                     }
 
-                    // Account input + datalist column
+                    // Beneficiary account column
                     if (j === 6) {
-                        const input = cell.querySelector('.account-live-input');
-                        const accountName = input ? (input.value || '').trim() : '';
+                        const beneficiaryEl = cell.querySelector('.beneficiary-account');
+                        let accountName = '';
+                        let accountNo = '';
+                        let bankCode = '';
+                        let bankName = '';
+                        
+                        if (beneficiaryEl) {
+                            // Get values from hidden fields
+                            const accountNameInput = beneficiaryEl.querySelector('.account-name-input');
+                            const accountNoInput = beneficiaryEl.querySelector('.account-no-input');
+                            const bankCodeInput = beneficiaryEl.querySelector('.bank-code-input');
+                            const bankNameInput = beneficiaryEl.querySelector('.bank-name-input');
+                            
+                            accountName = accountNameInput ? (accountNameInput.value || '').trim() : '';
+                            accountNo = accountNoInput ? (accountNoInput.value || '').trim() : '';
+                            bankCode = bankCodeInput ? (bankCodeInput.value || '').trim() : '';
+                            bankName = bankNameInput ? (bankNameInput.value || '').trim() : '';
+                        }
+                        
                         // account_name
                         rowData.values.push(accountName);
                         // default transaction_type (kept for index compatibility)
                         rowData.values.push('');
-
-                        // Try to resolve details from the selected datalist option
-                        let accountNo = '';
-                        let bankCode = '';
-                        let bankName = '';
-                        if (input && accountName) {
-                            const listId = input.getAttribute('list');
-                            const datalistEl = listId ? document.getElementById(listId) : null;
-                            if (datalistEl) {
-                                const options = Array.from(datalistEl.querySelectorAll('option'));
-                                const match = options.find(opt => (opt.value || '').trim() === accountName);
-                                if (match) {
-                                    accountNo = match.getAttribute('data-account-no') || '';
-                                    bankCode = match.getAttribute('data-bank-code') || '';
-                                    bankName = match.getAttribute('data-bank-name') || '';
-                                }
-                            }
-                        }
+                        // account_no, bank_code, bank_name
                         rowData.values.push(accountNo);
                         rowData.values.push(bankCode);
                         rowData.values.push(bankName);
@@ -254,6 +256,12 @@ function createModalTableBody(tableBodyID) {
 
         group.items.forEach(item => {
             const tr = document.createElement('tr');
+            // Format beneficiary account details for display
+            const accountName = item.values[6] || 'N/A';
+            const accountNo = item.values[8] || 'N/A';
+            const bankName = item.values[10] || 'N/A';
+            const beneficiaryDisplay = `${accountName} — ${accountNo} (${bankName})`;
+            
             tr.innerHTML = `
                 <td>${item.values[0]}</td>
                 <td>${item.values[1]}</td>
@@ -261,9 +269,9 @@ function createModalTableBody(tableBodyID) {
                 <td>${item.values[3]}</td>
                 <td>${item.values[4]}</td>
                 <td>${item.values[5]}</td>
-                <td>${item.values[7]}</td>
-                <td>${item.values[8]}</td>
+                <td>${beneficiaryDisplay}</td>
                 <td>${item.values[9]}</td>
+                <td>${item.values[10]}</td>
                 `;
             tableBody.appendChild(tr);
         });
