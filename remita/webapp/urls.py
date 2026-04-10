@@ -28,6 +28,7 @@ urlpatterns = [
     path('bank_details/', views.vendorBankDetails, name='bank-details'),
     path('bank_details/search/', views.searchvendorBankDetails, name='search-vendor-bank-details'),
     path('bank_details/live-search/', views.live_search_bank_details, name='live-search-bank-details'),
+    path('bank_details/beneficiary/', views.get_beneficiary_details, name='get-beneficiary-details'),
     # Source bank management
     path('source-banks/', views.source_bank_details, name='source-bank-details'),
     path('source-banks/add/', views.add_source_bank, name='add-source-bank'),

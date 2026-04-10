@@ -1530,6 +1530,38 @@ def check_transaction_status(request, batch_ref):
         }, status=500)
 
 
+def get_beneficiary_details(request):
+    """Get beneficiary bank details by vendor ID.
+    
+    Query params:
+      - vendor_id: vendor ID (required)
+    Returns JSON {account_name, account_no, bank_name, bank_code, vendor_id} or {error: message}
+    """
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Only GET requests allowed'}, status=400)
+
+    vendor_id = (request.GET.get('vendor_id') or '').strip()
+    
+    if not vendor_id:
+        return JsonResponse({'error': 'Vendor ID is required'}, status=400)
+
+    try:
+        beneficiary = BankDetails.objects.filter(vendor_id=vendor_id).first()
+        if beneficiary:
+            return JsonResponse({
+                'account_name': beneficiary.account_name,
+                'account_no': beneficiary.account_no,
+                'bank_name': beneficiary.bank_name,
+                'bank_code': beneficiary.bank_code,
+                'vendor_id': beneficiary.vendor_id
+            })
+        else:
+            return JsonResponse({'error': f'No bank details found for vendor {vendor_id}'}, status=404)
+            
+    except Exception as e:
+        return JsonResponse({'error': f'Server error: {str(e)}'}, status=500)
+
+
 def live_search_bank_details(request):
     """Live search endpoint for bank details by account name.
 
