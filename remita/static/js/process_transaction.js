@@ -1,88 +1,54 @@
-// ─────────────────────────────────────────────────────────────
-// TRANSACTION PROCESSING MODULE - Enhanced Version
-// ─────────────────────────────────────────────────────────────
-
-// DOM Element References
 const processBtn = document.getElementById('process-btn');
 const searchBtn = document.getElementById('search-button');
 const modalSubmitBtn = document.getElementById('modal-submit-btn');
 const loader = document.getElementById('spinner');
-const rows = document.querySelectorAll('.transaction-table-body tr');
+const rows = document.querySelectorAll('#table-body tr, .transaction-table-body tr');
 const checkboxes = document.querySelectorAll('input[type="checkbox"]');
 const searchInput = document.getElementById('search-input');
 const filterOptions = document.getElementById('filter-options');
-const startDateInput = document.getElementById('datepicker1');
-const endDateInput = document.getElementById('datepicker2');
 
-// State Management
 var isScrolledToTop = true;
-let isStartDateEmpty = true;
-let isEndDateEmpty = true;
 let selectedVendorsInvoiceNumber = [];
 let selectedPageNumber = 1;
 let numberOfPages = 0;
 let hasClickedOnSearchBtn = false;
 let query_params = [];
 let selectedTransactionType = {};
-
-// Combined transaction data for submission
 let combinedValues = [];
+
 sessionStorage.clear();
 
-// ─── Initialize Event Listeners ────────────────────────────────
-// Called on document load to set up all event handlers
-
+// On page load: restore checkbox checked state from sessionStorage.
+// Enabling/disabling is now handled entirely by the beneficiary dropdown's
+// change handler — we only restore the checked tick here.
 addCheckBoxandSelectValues(rows);
 addEventListenerToCheckboxes(checkboxes);
 addEventListenerToAnchorTag();
-addEventListenersToSelect(rows)
 
-function addEventListenersToSelect(rows) {
-    rows.forEach(row => {
-        const acctInputs = row.querySelectorAll('.account-live-input');
-        acctInputs.forEach(input => {
-            input.addEventListener('input', () => {
-                const accountName = (input.value || '').trim();
-                const trow = input.closest('tr');
-                const inputElement = trow.querySelector('input[name="transaction"]');
-                const value = inputElement.value;
-                if (accountName) {
-                    // Store account name in session, but don't disable checkbox
-                    sessionStorage.setItem("accountName-" + value, accountName);
-                } else {
-                    // Remove from storage, but don't disable checkbox
-                    sessionStorage.removeItem("accountName-" + value);
-                }
-            });
-        });
-    });
-}
-
+// ------------------------------------------------------------
+// Checkbox state restoration (checked tick only — not enabled/disabled)
+// Enabled state is controlled by the beneficiary dropdown JS
+// ------------------------------------------------------------
 function addCheckBoxandSelectValues(rows) {
     rows.forEach(row => {
         if (row.id) {
             const value = row.id;
             const inputElement = row.querySelector('input[name="transaction"]');
-            const acctInput = row.querySelector('.account-live-input');
-            const accountName = sessionStorage.getItem("accountName-" + value);
-            const checkbox = sessionStorage.getItem(value)
-            if (acctInput) {
-                if (accountName) {
-                    acctInput.value = accountName;
-                    if (checkbox) {
-                        inputElement.checked = true;
-                    }
-                    // Checkboxes are now always enabled - no need to removeAttribute
-                } else {
-                    acctInput.value = '';
-                    // Checkboxes are now always enabled - no need to setAttribute disabled
-                }
+            if (!inputElement) return;
+            const wasChecked = sessionStorage.getItem(value);
+            if (wasChecked === 'true') {
+                inputElement.checked = true;
+                // Don't call removeAttribute('disabled') here —
+                // the dropdown hasn't loaded yet at this point.
+                // The dropdown's change event enables it on selection.
             }
         }
     });
 }
 
-
+// ------------------------------------------------------------
+// Checkbox event listeners
+// ------------------------------------------------------------
 function addEventListenerToCheckboxes(checkboxes) {
     checkboxes.forEach(cb => {
         cb.addEventListener('change', () => {
@@ -91,215 +57,191 @@ function addEventListenerToCheckboxes(checkboxes) {
                 project_id: null,
                 project_name: null,
             };
+
             if (cb.checked) {
                 const row = cb.closest('tr');
-                // capture project info from tbody
                 const tbody = row ? row.closest('tbody') : null;
                 if (tbody) {
-                    const pid = tbody.dataset.projectId || '1';
-                    rowData.project_id = parseInt(pid, 10);
+                    rowData.project_id = parseInt(tbody.dataset.projectId || '1', 10);
                     rowData.project_name = tbody.dataset.projectName || '';
                 }
 
-                // Iterate over each cell and construct values in expected order
                 for (let j = 0; j < row.cells.length; j++) {
                     const cell = row.cells[j];
 
-                    // Push textual columns: Date(1), Amount(2), Invoice(3), Reference(4), Vendor ID(5)
+                    // Columns 1–5: Date, Amount, Invoice, Reference, Vendor ID
                     if (j >= 1 && j <= 5) {
-                        rowData.values.push(cell.textContent);
+                        rowData.values.push(cell.textContent.trim());
                         continue;
                     }
 
-                    // Account input + datalist column
+                    // Column 6: Beneficiary Account — read from hidden fields
                     if (j === 6) {
-                        const input = cell.querySelector('.account-live-input');
-                        const accountName = input ? (input.value || '').trim() : '';
-                        // account_name
-                        rowData.values.push(accountName);
-                        // default transaction_type (kept for index compatibility)
-                        rowData.values.push('');
+                        const beneficiaryEl = cell.querySelector('.beneficiary-account');
+                        let accountName = '', accountNo = '', bankCode = '', bankName = '';
 
-                        // Try to resolve details from the selected datalist option
-                        let accountNo = '';
-                        let bankCode = '';
-                        let bankName = '';
-                        if (input && accountName) {
-                            const listId = input.getAttribute('list');
-                            const datalistEl = listId ? document.getElementById(listId) : null;
-                            if (datalistEl) {
-                                const options = Array.from(datalistEl.querySelectorAll('option'));
-                                const match = options.find(opt => (opt.value || '').trim() === accountName);
-                                if (match) {
-                                    accountNo = match.getAttribute('data-account-no') || '';
-                                    bankCode = match.getAttribute('data-bank-code') || '';
-                                    bankName = match.getAttribute('data-bank-name') || '';
-                                }
-                            }
+                        if (beneficiaryEl) {
+                            accountName = (beneficiaryEl.querySelector('.account-name-input')?.value || '').trim();
+                            accountNo   = (beneficiaryEl.querySelector('.account-no-input')?.value   || '').trim();
+                            bankCode    = (beneficiaryEl.querySelector('.bank-code-input')?.value    || '').trim();
+                            bankName    = (beneficiaryEl.querySelector('.bank-name-input')?.value    || '').trim();
                         }
-                        rowData.values.push(accountNo);
-                        rowData.values.push(bankCode);
-                        rowData.values.push(bankName);
-                    }
 
-                    // Ignore checkbox column (0) and actions column (7)
+                        rowData.values.push(accountName); // index 6
+                        rowData.values.push('');           // index 7 — transaction_type placeholder
+                        rowData.values.push(accountNo);    // index 8
+                        rowData.values.push(bankCode);     // index 9
+                        rowData.values.push(bankName);     // index 10
+                    }
+                    // Column 0 (checkbox) and 7 (actions) are skipped
                 }
-                // Add or replace the row data by invoice ID to avoid duplicates across accordion sections
+
+                // Deduplicate by invoice ID (index 2 = IDINVC)
                 const invoiceId = cb.value;
-                combinedValues = combinedValues.filter(item => item && item.values && item.values[2] !== invoiceId);
+                combinedValues = combinedValues.filter(item => item?.values?.[2] !== invoiceId);
                 combinedValues.push(rowData);
-                if (processBtn) {
-                    processBtn.removeAttribute('disabled');
-                }
-                const value = cb.value;
-                const checked = cb.checked;
+
+                if (processBtn) processBtn.removeAttribute('disabled');
+
                 addSelectedVendorsInvoiceNumber(cb.value);
-                sessionStorage.setItem(value, checked);
+                sessionStorage.setItem(cb.value, 'true');
                 saveSelectedRows();
+
             } else {
                 const value = cb.value;
-                removeSelectedVendorsInvoiceNumber(cb.value);
+                removeSelectedVendorsInvoiceNumber(value);
                 sessionStorage.removeItem(value);
+                combinedValues = combinedValues.filter(item => item?.values?.[2] !== value);
                 saveSelectedRows();
-                // Remove the row data from the combined values array by invoice ID
-                combinedValues = combinedValues.filter(item => item && item.values && item.values[2] !== value);
-                // Disable the process button only if no checkboxes remain checked across all tables
-                const anyChecked = document.querySelectorAll('.transaction-table-body input[type="checkbox"]:checked').length > 0;
+
+                const anyChecked = document.querySelectorAll(
+                    '#table-body input[type="checkbox"]:checked, .transaction-table-body input[type="checkbox"]:checked'
+                ).length > 0;
+
                 if (processBtn) {
-                    if (!anyChecked) {
-                        processBtn.setAttribute('disabled', 'disabled');
-                    } else {
-                        processBtn.removeAttribute('disabled');
-                    }
+                    anyChecked
+                        ? processBtn.removeAttribute('disabled')
+                        : processBtn.setAttribute('disabled', 'disabled');
                 }
             }
-            console.log(combinedValues)
-        })
 
-    })
+            console.log('combinedValues:', combinedValues);
+        });
+    });
 }
 
+// ------------------------------------------------------------
+// Scroll helpers
+// ------------------------------------------------------------
 function scrollToTopOrBottom() {
-    if (isScrolledToTop) {
-        scrollToBottom();
-        isScrolledToTop = false;
-    } else {
-        scrollToTop();
-        isScrolledToTop = true;
-    }
+    if (isScrolledToTop) { scrollToBottom(); isScrolledToTop = false; }
+    else                  { scrollToTop();   isScrolledToTop = true;  }
 }
+function scrollToTop()    { window.scrollTo({ top: 0,                                        behavior: 'smooth' }); }
+function scrollToBottom() { window.scrollTo({ top: document.documentElement.scrollHeight,    behavior: 'smooth' }); }
 
-function scrollToTop() {
-    window.scrollTo({
-        top: 0,
-        behavior: "smooth" // Optional: Add smooth scrolling animation
-    });
-}
-
-
-function scrollToBottom() {
-    window.scrollTo({
-        top: document.documentElement.scrollHeight,
-        behavior: "smooth" // Optional: Add smooth scrolling animation
-    });
-}
-
-
-
-
+// ------------------------------------------------------------
+// Selected invoice tracking
+// ------------------------------------------------------------
 function addSelectedVendorsInvoiceNumber(invoiceId) {
-
-    if (!selectedVendorsInvoiceNumber.includes(invoiceId)) {
+    if (!selectedVendorsInvoiceNumber.includes(invoiceId))
         selectedVendorsInvoiceNumber.push(invoiceId);
-
-    }
 }
-
 function removeSelectedVendorsInvoiceNumber(invoiceId) {
     const index = selectedVendorsInvoiceNumber.indexOf(invoiceId);
-    if (index !== -1) {
-        selectedVendorsInvoiceNumber.splice(index, 1);
-    }
+    if (index !== -1) selectedVendorsInvoiceNumber.splice(index, 1);
 }
 
+// ------------------------------------------------------------
+// Save selected rows / transaction types
+// ------------------------------------------------------------
 function saveSelectedRows() {
-    let rows = document.querySelectorAll(`.transaction-table-body tr`);
-    rows.forEach((row) => {
-            let cb = row.querySelector('td input[type="checkbox"]')
-            if (cb && cb.checked) {
-                const transactionTypeEl = row.querySelector('td select[name="transaction_type"]');
-                let transactionType = transactionTypeEl ? transactionTypeEl.value : 'IFT';
-                selectedTransactionType[cb.value] = transactionType;
-            }
+    document.querySelectorAll('#table-body tr, .transaction-table-body tr').forEach(row => {
+        const cb = row.querySelector('td input[type="checkbox"]');
+        if (cb && cb.checked) {
+            const typeEl = row.querySelector('td select[name="transaction_type"]');
+            selectedTransactionType[cb.value] = typeEl ? typeEl.value : 'IFT';
         }
-    )
+    });
 }
 
+// ------------------------------------------------------------
+// Modal table body builder
+// ------------------------------------------------------------
 function createModalTableBody(tableBodyID) {
-
-    let tableBody = document.getElementById(tableBodyID);
+    const tableBody = document.getElementById(tableBodyID);
+    if (!tableBody) return;
     tableBody.innerHTML = '';
 
-    // Group items by project_id
+    // Group by project_id
     const groups = {};
     combinedValues.forEach(item => {
         const pid = item.project_id || 0;
-        if (!groups[pid]) {
-            groups[pid] = { name: item.project_name || ('Project ' + pid), items: [] };
-        }
+        if (!groups[pid]) groups[pid] = { name: item.project_name || ('Project ' + pid), items: [] };
         groups[pid].items.push(item);
     });
 
-    // Render groups with a header row per project
     Object.keys(groups).forEach(pid => {
         const group = groups[pid];
+
         const headerRow = document.createElement('tr');
-        headerRow.innerHTML = `<td colspan="9" class="fw-bold bg-light">${group.name} (Project ID: ${pid})</td>`;
+        headerRow.innerHTML = `<td colspan="7" class="fw-bold bg-light">${group.name} (Project ID: ${pid})</td>`;
         tableBody.appendChild(headerRow);
 
         group.items.forEach(item => {
+            const accountName = item.values[6]  || 'N/A';
+            const accountNo   = item.values[8]  || 'N/A';
+            const bankCode    = item.values[9]  || 'N/A';
+            const bankName    = item.values[10] || 'N/A';
+
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td>${item.values[0]}</td>
-                <td>${item.values[1]}</td>
-                <td>${item.values[2]}</td>
-                <td>${item.values[3]}</td>
-                <td>${item.values[4]}</td>
-                <td>${item.values[5]}</td>
-                <td>${item.values[7]}</td>
-                <td>${item.values[8]}</td>
-                <td>${item.values[9]}</td>
-                `;
+                <td>${item.values[0] || ''}</td>
+                <td>${item.values[1] || ''}</td>
+                <td>${item.values[2] || ''}</td>
+                <td>${item.values[3] || ''}</td>
+                <td>${item.values[4] || ''}</td>
+                <td>${accountName} — ${accountNo}</td>
+                <td>${bankCode} (${bankName})</td>
+            `;
             tableBody.appendChild(tr);
         });
     });
 
+    // Transaction count badge
+    const countBadge = document.getElementById('transaction-count');
+    const count = combinedValues.length;
+    if (countBadge) countBadge.innerHTML = `<i class="bi bi-check-circle me-1"></i>${count} Transaction${count !== 1 ? 's' : ''}`;
+
+    // No-transactions message
+    const noMsg = document.getElementById('no-transactions-message');
+    if (noMsg) noMsg.style.display = count > 0 ? 'none' : 'block';
+
+    // Modal submit button
+    if (modalSubmitBtn) {
+        count > 0
+            ? modalSubmitBtn.removeAttribute('disabled')
+            : modalSubmitBtn.setAttribute('disabled', 'disabled');
+    }
 }
 
-
-// handles the click even of the anchor tags
+// ------------------------------------------------------------
+// Pagination
+// ------------------------------------------------------------
 function handleClick(event) {
     event.preventDefault();
     const url = event.target.getAttribute('href');
     fetch(url)
-        .then(response => response.text())
+        .then(r => r.text())
         .then(html => {
-            updateTableAndPaginator(html)
+            updateTableAndPaginator(html);
             addEventListenerToAnchorTag();
         });
 }
 
 function addEventListenerToAnchorTag() {
-    const paginationLinks = document.querySelectorAll('.custom-pagination a');
-    paginationLinks.forEach(link => {
-        link.addEventListener('click', handleClick); // Add the handleClick function as the event listener
-    });
-}
-
-function removeEventListenerFromAnchorTag() {
-    const paginationLinks = document.querySelectorAll('.custom-pagination a');
-    paginationLinks.forEach(link => {
-        link.removeEventListener('click', handleClick); // Remove the handleClick function as the event listener
+    document.querySelectorAll('.custom-pagination a').forEach(link => {
+        link.addEventListener('click', handleClick);
     });
 }
 
@@ -307,357 +249,231 @@ function updateTableAndPaginator(html) {
     const parser = new DOMParser();
     const newDoc = parser.parseFromString(html, 'text/html');
 
-    const newRow = newDoc.querySelectorAll("#table-body tr");
+    const newRows       = newDoc.querySelectorAll('#table-body tr');
     const newCheckboxes = newDoc.querySelectorAll('input[type="checkbox"]');
+    const newTable      = newDoc.getElementById('table-body');
+    const newPaginator  = newDoc.getElementById('paginator');
 
-    addCheckBoxandSelectValues(newRow);
-    addEventListenersToSelect(newRow);
+    addCheckBoxandSelectValues(newRows);
     addEventListenerToCheckboxes(newCheckboxes);
 
-    const newTable = newDoc.getElementById('table-body');
-    const newPaginator = newDoc.getElementById('paginator');
-    document.getElementById('table-body').replaceWith(newTable);
-    document.getElementById('paginator').replaceWith(newPaginator);
-
-    // Add any other necessary post-update operations
+    if (newTable)     document.getElementById('table-body')?.replaceWith(newTable);
+    if (newPaginator) document.getElementById('paginator')?.replaceWith(newPaginator);
 }
 
 function fetchSearchResults(queryParams, page) {
-    const searchInput = queryParams[0];
-    const filterOptions = queryParams[1];
-
-    fetch(`/remita/search/?search_params=${searchInput}&filter_options=${filterOptions}&page=${page}`)
-        .then(response => response.text())
+    const [searchParam, filterParam] = queryParams;
+    fetch(`/remita/search/?search_params=${searchParam}&filter_options=${filterParam}&page=${page}`)
+        .then(r => r.text())
         .then(html => {
-            // Parse the HTML response
-            const parser = new DOMParser();
-            const newDoc = parser.parseFromString(html, 'text/html');
+            const parser    = new DOMParser();
+            const newDoc    = parser.parseFromString(html, 'text/html');
+            const newRows   = newDoc.querySelectorAll('#table-body tr');
+            const newCBs    = newDoc.querySelectorAll('input[type="checkbox"]');
+            const newTable  = newDoc.getElementById('table-body');
+            const newPager  = newDoc.getElementById('paginator');
 
-            // Get the new HTML elements
-            const newRow = newDoc.querySelectorAll("#table-body tr");
-            const newCheckboxes = newDoc.querySelectorAll('input[type="checkbox"]');
-            const newTable = newDoc.getElementById('table-body');
-            const newPaginator = newDoc.getElementById('paginator');
-            numberOfPages = parseInt(newPaginator.dataset.numPages);
-            console.log(numberOfPages, selectedPageNumber)
-            // Update the pagination links
-            // Add event listeners to the new elements
-            addCheckBoxandSelectValues(newRow);
-            addEventListenersToSelect(newRow);
-            addEventListenerToCheckboxes(newCheckboxes);
+            numberOfPages = parseInt(newPager?.dataset.numPages || '1', 10);
 
-            // Replace the existing table and paginator with the new ones
-            const tableBody = document.getElementById('table-body');
-            const paginator = document.getElementById('paginator');
+            addCheckBoxandSelectValues(newRows);
+            addEventListenerToCheckboxes(newCBs);
 
-            tableBody.replaceWith(newTable);
-            paginator.replaceWith(newPaginator)
-            console.log(newPaginator)
-            updatePaginationLinks(newPaginator);
+            document.getElementById('table-body')?.replaceWith(newTable);
+            document.getElementById('paginator')?.replaceWith(newPager);
+            updatePaginationLinks(newPager);
         })
-        .catch(error => {
-            console.error('Error fetching search results:', error);
-        });
-}
-
-function getCSRFToken() {
-    let csrfToken = document.cookie.split('; ').find(row => row.startsWith('csrftoken')).split('=')[1];
-    if (csrfToken == null) {
-        csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
-    }
-    return csrfToken;
-}
-
-function updatePaginationLinks(newDoc) {
-    const nextLink = newDoc.querySelector('#next')
-    if (nextLink) {
-        nextPageLink(nextLink)
-    }
-    const firstLink = newDoc.querySelector('#first')
-    if (firstLink) {
-        firstPageLink(firstLink)
-    }
-    const lastLink = newDoc.querySelector('#last')
-    if (lastLink) {
-        lastPageLink(lastLink)
-    }
-    const previousLink = newDoc.querySelector('#previous')
-    if (previousLink) {
-        previousPageLink(previousLink)
-    }
+        .catch(err => console.error('Search error:', err));
 }
 
 async function goToPage() {
-
-    try {
-        fetchSearchResults(query_params, selectedPageNumber)
-    } catch (err) {
-        console.log(err);
-    }
+    try { fetchSearchResults(query_params, selectedPageNumber); }
+    catch (err) { console.error(err); }
 }
 
-function nextPageLink(nextLink) {
-    nextLink.addEventListener('click', (e) => {
-        if (hasClickedOnSearchBtn === true) {
-            e.preventDefault();
-            if (selectedPageNumber !== numberOfPages) {
-                selectedPageNumber += 1;
-            }
-
-            goToPage();
-
-        }
+function updatePaginationLinks(newDoc) {
+    const map = { '#next': nextPageLink, '#first': firstPageLink, '#last': lastPageLink, '#previous': previousPageLink };
+    Object.entries(map).forEach(([sel, fn]) => {
+        const el = newDoc?.querySelector(sel);
+        if (el) fn(el);
     });
 }
 
-function previousPageLink(previousLink) {
-    previousLink.addEventListener('click', (e) => {
-        if (hasClickedOnSearchBtn === true) {
-            e.preventDefault();
-            if (selectedPageNumber !== 1) {
-                selectedPageNumber -= 1;
-            }
-
-            goToPage();
-        }
+function nextPageLink(el) {
+    el.addEventListener('click', e => {
+        if (!hasClickedOnSearchBtn) return;
+        e.preventDefault();
+        if (selectedPageNumber < numberOfPages) selectedPageNumber++;
+        goToPage();
+    });
+}
+function previousPageLink(el) {
+    el.addEventListener('click', e => {
+        if (!hasClickedOnSearchBtn) return;
+        e.preventDefault();
+        if (selectedPageNumber > 1) selectedPageNumber--;
+        goToPage();
+    });
+}
+function lastPageLink(el) {
+    el.addEventListener('click', e => {
+        if (!hasClickedOnSearchBtn) return;
+        e.preventDefault();
+        selectedPageNumber = numberOfPages;
+        goToPage();
+    });
+}
+function firstPageLink(el) {
+    el.addEventListener('click', e => {
+        if (!hasClickedOnSearchBtn) return;
+        e.preventDefault();
+        selectedPageNumber = 1;
+        goToPage();
     });
 }
 
-function lastPageLink(lastLink) {
-    lastLink.addEventListener('click', (e) => {
-        if (hasClickedOnSearchBtn === true) {
-            e.preventDefault();
-            selectedPageNumber = numberOfPages;
-            goToPage();
-        }
-    });
-}
-
-function firstPageLink(firstLink) {
-    firstLink.addEventListener('click', (e) => {
-        if (hasClickedOnSearchBtn === true) {
-            e.preventDefault();
-            selectedPageNumber = 1;
-            goToPage();
-        }
-    });
-}
-
-// Generate a batch reference (JS-side) when the modal is about to show
-// Format: BR-<yyyymmddhhmmss>-<random>
+// ------------------------------------------------------------
+// Batch ref generation
+// ------------------------------------------------------------
 function generateBatchRef() {
-    const ts = new Date().toISOString().replace(/[-T:.Z]/g, '').slice(0, 14); // yyyymmddhhmmss
+    const ts   = new Date().toISOString().replace(/[-T:.Z]/g, '').slice(0, 14);
     const rand = Math.random().toString(36).slice(2, 8).toUpperCase();
     return `BR-${ts}-${rand}`;
 }
 
-// ─── Modal Event Handlers ──────────────────────────────────────
-// Hook into Bootstrap modal show/hide to set/reset values
+// ------------------------------------------------------------
+// Modal show/hide hooks
+// ------------------------------------------------------------
 $(document).ready(function () {
     const $modal = $('#post-transaction-modal');
     if ($modal.length) {
         $modal.on('show.bs.modal', function () {
-            try {
-                // Auto-generate and set batch reference
-                const ref = generateBatchRef();
-                $('#batch-ref-input').val(ref);
-                $('#batch-desc-input').val('');
-                
-                // Update transaction count display
-                const count = combinedValues.length;
-                $('#modal-transaction-count').text(count).attr('aria-label', `${count} transactions selected`);
-                
-                // Refresh the table content in the modal
-                createModalTableBody('modal-table-body');
-                
-                // Update transaction count in table footer if needed
-                $('#table-transaction-count').text(count);
-                
-                console.log(`Modal opened with ${count} transactions`);
-            } catch (err) {
-                console.error('Error initializing modal:', err);
-                showAlert('Error loading modal. Please try again.', 'danger');
-            }
+            $('#batch-ref-input').val(generateBatchRef());
+            $('#batch-desc-input').val('');
+            createModalTableBody('modal-table-body');
         });
-        
         $modal.on('hidden.bs.modal', function () {
-            try {
-                // Reset values when modal is closed
-                $('#batch-ref-input').val('');
-                $('#batch-desc-input').val('');
-                $('#modal-alert').addClass('d-none');
-            } catch (err) {
-                console.error('Error resetting modal:', err);
-            }
+            $('#batch-ref-input').val('');
+            $('#batch-desc-input').val('');
         });
     }
 });
 
-if (processBtn){
-    processBtn.addEventListener('click', (e) => {
+// ------------------------------------------------------------
+// Process button
+// ------------------------------------------------------------
+if (processBtn) {
+    processBtn.addEventListener('click', e => {
         e.preventDefault();
-        try {
-            // Table body will also be created on show event, but we keep this for safety
-            createModalTableBody('modal-table-body');
-            console.log('Process button clicked - modal body created');
-        } catch (err) {
-            console.error('Error creating modal table body:', err);
-            alert('Error preparing modal. Please try again.');
-        }
+        createModalTableBody('modal-table-body');
     });
 }
 
-// ─── Modal Submit Handler ──────────────────────────────────────
-// Handles transaction submission with validation and error handling
-if (modalSubmitBtn){
-    modalSubmitBtn.addEventListener('click', (e) => {
-        try {
-            // Show loading state
-            loader.classList.remove('d-none');
-            e.preventDefault();
-            
-            // Validate that we have transactions to submit
-            if (!combinedValues || combinedValues.length === 0) {
-                console.warn('No transactions selected for submission');
-                alert('No transactions selected. Please select at least one transaction.');
-                loader.classList.add('d-none');
-                return;
-            }
-            
-            // Always generate a fresh batch reference at submission time to avoid reuse on retries
-            const freshBatchRef = generateBatchRef();
-            if (document.getElementById('batch-ref-input')) {
-                document.getElementById('batch-ref-input').value = freshBatchRef;
-            }
-            const batchRef = freshBatchRef;
-            const batchDesc = document.getElementById('batch-desc-input') ? document.getElementById('batch-desc-input').value : '';
+// ------------------------------------------------------------
+// Modal submit button
+// ------------------------------------------------------------
+if (modalSubmitBtn) {
+    modalSubmitBtn.addEventListener('click', e => {
+        e.preventDefault();
+        loader?.classList.remove('d-none');
 
-            // Build unique transaction references per item for this submission only
-            const txRefsMap = {};
-            const ts = new Date().toISOString().replace(/[-T:.Z]/g, '').slice(0, 14);
-            const baseRand = Math.random().toString(36).slice(2, 8).toUpperCase();
-            combinedValues.forEach((item, idx) => {
-                try {
-                    const invoiceId = item && item.values ? item.values[2] : `IDX${idx}`;
-                    // TR-<timestamp>-<rand>-<seq>
-                    txRefsMap[invoiceId] = `TR-${ts}-${baseRand}-${(idx+1).toString().padStart(3,'0')}`;
-                } catch (_) {}
-            });
-            
-            console.log(`Submitting ${combinedValues.length} transactions with batch ref: ${batchRef}`);
+        const freshBatchRef = generateBatchRef();
+        const batchRefInput = document.getElementById('batch-ref-input');
+        if (batchRefInput) batchRefInput.value = freshBatchRef;
 
-            // Send selected invoice numbers & transaction type to server using ajax
-            $.ajax({
-                type: 'POST',
-                url: '/remita/post-transactions/',
-                data: {
-                    'csrfmiddlewaretoken': getCSRFToken(),
-                    'transactions': JSON.stringify(combinedValues),
-                    'invoice_ids[]': JSON.stringify(selectedVendorsInvoiceNumber),
-                    'transaction_type': JSON.stringify(selectedTransactionType),
-                    'batch_ref': batchRef,
-                    'narration': batchDesc,
-                    'transaction_refs': JSON.stringify(txRefsMap),
-                    'source_bank_id': (function(){ var el = document.getElementById('source-bank-select'); return el ? el.value : ''; })()
-                },
-                dataType: 'json',
-            })
+        const batchDesc = document.getElementById('batch-desc-input')?.value || '';
+
+        const txRefsMap = {};
+        const ts       = new Date().toISOString().replace(/[-T:.Z]/g, '').slice(0, 14);
+        const baseRand = Math.random().toString(36).slice(2, 8).toUpperCase();
+        combinedValues.forEach((item, idx) => {
+            const invoiceId = item?.values?.[2] ?? `IDX${idx}`;
+            txRefsMap[invoiceId] = `TR-${ts}-${baseRand}-${String(idx + 1).padStart(3, '0')}`;
+        });
+
+        const sourceBankId = document.getElementById('source-bank-select')?.value || '';
+
+        $.ajax({
+            type: 'POST',
+            url: 'post-transactions/',
+            data: {
+                csrfmiddlewaretoken: getCSRFToken(),
+                transactions:        JSON.stringify(combinedValues),
+                'invoice_ids[]':     JSON.stringify(selectedVendorsInvoiceNumber),
+                transaction_type:    JSON.stringify(selectedTransactionType),
+                batch_ref:           freshBatchRef,
+                narration:           batchDesc,
+                transaction_refs:    JSON.stringify(txRefsMap),
+                source_bank_id:      sourceBankId,
+            },
+            dataType: 'json',
+        })
         .done(res => {
-            loader.classList.add('d-none');
+            loader?.classList.add('d-none');
             $('#post-transaction-modal').modal('hide');
 
-            // Prefer backend-provided messages
-            const extractMessage = (payload) => {
-                if (!payload) return '';
-                const d = payload.data || {};
-                // Common backend fields
-                return (
-                    payload.message ||
-                    d.message ||
-                    d.responseMessage ||
-                    d.statusMessage ||
-                    d.status ||
-                    payload.error ||
-                    (typeof payload === 'string' ? payload : '') ||
-                    ''
-                );
+            const extractMessage = p => {
+                if (!p) return '';
+                const d = p.data || {};
+                return p.message || d.message || d.responseMessage || d.statusMessage || d.status || p.error || '';
             };
 
-            const msg = extractMessage(res) || 'Request processed.';
-            const icon = res.success ? 'success' : 'error';
-            const title = res.success ? 'Transaction processing' : 'Transaction failed';
-
             Swal.fire({
-                icon: icon,
-                title: title,
-                text: msg,
-                confirmButtonText: 'OK'
-            }).then(() => {
-                if (res.success) {
-                    // If backend returns a dashboard redirect previously, keep behavior
-                    window.location.href = 'dashboard';
-                }
-            });
+                icon:              res.success ? 'success' : 'error',
+                title:             res.success ? 'Transaction processing' : 'Transaction failed',
+                text:              extractMessage(res) || 'Request processed.',
+                confirmButtonText: 'OK',
+            }).then(() => { if (res.success) window.location.href = 'dashboard'; });
         })
-        .fail((xhr) => {
-            loader.classList.add('d-none');
+        .fail(xhr => {
+            loader?.classList.add('d-none');
             $('#post-transaction-modal').modal('hide');
 
             let payload = null;
-            try {
-                payload = xhr.responseJSON ? xhr.responseJSON : JSON.parse(xhr.responseText);
-            } catch (_) {}
+            try { payload = xhr.responseJSON ?? JSON.parse(xhr.responseText); } catch (_) {}
+            const d   = payload?.data ?? {};
+            const msg = payload?.message || payload?.error || d.message || d.responseMessage || d.statusMessage || d.status || 'Your request could not be processed.';
 
-            const d = payload && payload.data ? payload.data : {};
-            const msg = (payload && (payload.message || payload.error)) || d.message || d.responseMessage || d.statusMessage || d.status || 'Your request could not be processed.';
-
-            Swal.fire({
-                icon: 'error',
-                title: 'Transaction failed',
-                text: msg,
-                confirmButtonText: 'OK',
-                footer: 'Try again later'
-            });
+            Swal.fire({ icon: 'error', title: 'Transaction failed', text: msg, confirmButtonText: 'OK', footer: 'Try again later' });
         });
-        } catch (err) {
-            console.error('Error submitting transactions:', err);
-            loader.classList.add('d-none');
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: 'An error occurred while submitting transactions. Please try again.',
-                confirmButtonText: 'OK'
-            });
-        }
     });
 }
 
-if (searchBtn){searchBtn.addEventListener('click', (e) => {
-    e.preventDefault();
-    const q = encodeURIComponent(searchInput.value || '');
-    const f = encodeURIComponent(filterOptions.value || '');
-    window.location.href = `search/?search_params=${q}&filter_options=${f}`;
-})}
-if (filterOptions){
+// ------------------------------------------------------------
+// Search button
+// ------------------------------------------------------------
+if (searchBtn) {
+    searchBtn.addEventListener('click', e => {
+        e.preventDefault();
+        const q = encodeURIComponent(searchInput?.value || '');
+        const f = encodeURIComponent(filterOptions?.value || '');
+        window.location.href = `/remita/search/?search_params=${q}&filter_options=${f}`;
+    });
+}
+
+// ------------------------------------------------------------
+// Filter options — Flatpickr date picker
+// ------------------------------------------------------------
+if (filterOptions) {
     filterOptions.addEventListener('change', () => {
+        if (!searchInput) return;
         searchInput.removeAttribute('readonly');
-    
+
+        if (searchInput._flatpickr) {
+            searchInput._flatpickr.destroy();
+            delete searchInput._flatpickr;
+        }
+
         if (filterOptions.value === 'date') {
-            // Destroy any existing Flatpickr instance
-            if (searchInput._flatpickr) {
-                searchInput._flatpickr.destroy();
-            }
-            searchInput._flatpickr = flatpickr(searchInput, {
-                dateFormat: 'Ymd',
-    
-            });
-        } else {
-            // Destroy Flatpickr if it's not the "date" option
-            if (searchInput._flatpickr) {
-                searchInput._flatpickr.destroy();
-            }
+            searchInput._flatpickr = flatpickr(searchInput, { dateFormat: 'Ymd' });
         }
     });
-    
 }
 
+// ------------------------------------------------------------
+// CSRF helper
+// ------------------------------------------------------------
+function getCSRFToken() {
+    const fromCookie = document.cookie.split('; ').find(r => r.startsWith('csrftoken='));
+    if (fromCookie) return fromCookie.split('=')[1];
+    return document.querySelector('input[name="csrfmiddlewaretoken"]')?.value || '';
+}

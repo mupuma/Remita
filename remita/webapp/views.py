@@ -1277,11 +1277,7 @@ def update_transaction_status(invoice_id, status_code, response_message=''):
         # Determine status based on status code
         if status_code == '00':
             status = 1  # Success
-        elif status_code in ['01', '02', '04', '13', '16', '17', '18', '22', '24',
-                             '26', '27', '28', '29', '30', '31', '33', '34', '36',
-                             '37', '38', '42', '43', '44', '46', '50', '51', '54',
-                             '55', '58', '59', '60', '65', '68', '71', '72', '74',
-                             '75', '76', '77', '78', '79', '91', '94', '96']:
+        elif status_code in ['01', '02', '04', '13', '16', '17', '18', '22', '24', '26', '27', '28', '29', '30', '31', '33', '34', '36', '37', '38', '42', '43', '44', '46', '50', '51', '54', '55', '58', '59', '60', '65', '68', '71', '72', '74', '75', '76', '77', '78', '79', '91', '94', '96']:
             status = 2  # Failed
         else:
             status = 0  # Pending
@@ -1437,18 +1433,7 @@ def post_transactions(request):
 
 def check_transaction_status(request, batch_ref):
     """
-    Check status for a previous bulk payment batch and return ONLY the minimal schema:
-    {
-        "status": "00" | <code>,
-        "message": <string>,
-        "meta": null,
-        "links": null,
-        "code": null,
-        "data": {
-            "transactions": [{"paymentIdentifier": str, "status": str}, ...],
-            "pagination": { ... } | null
-        }
-    }
+    Check status for a previous bulk payment batch and return ONLY the minimal schema.
     """
     if request.method != 'GET':
         return JsonResponse({'message': 'Only GET requests allowed'}, status=400)
@@ -1457,7 +1442,6 @@ def check_transaction_status(request, batch_ref):
         # Acquire/refresh token
         secret_key = check_and_refresh_token(request)
         if not secret_key:
-            # Follow the minimal schema even for auth errors
             return JsonResponse({
                 'status': '401',
                 'message': 'Authentication required',
@@ -1481,7 +1465,8 @@ def check_transaction_status(request, batch_ref):
                     'paymentIdentifier': t.get('paymentIdentifier'),
                     'status': t.get('status')
                 })
-        except Exception:
+        except Exception as e:
+            print(f"Error extracting transactions: {e}")
             transactions = []
 
         # Extract pagination if present
@@ -1517,6 +1502,7 @@ def check_transaction_status(request, batch_ref):
         })
 
     except Exception as e:
+        print(f"check_transaction_status error: {str(e)}")
         return JsonResponse({
             'status': '99',
             'message': str(e),
@@ -1563,38 +1549,23 @@ def get_beneficiary_details(request):
 
 
 def live_search_bank_details(request):
-    """Live search endpoint for bank details by account name.
-
-    Query params:
-      - q: search term (required)
-      - vendor_id: optional vendor filter to limit results to the row's vendor
-      - limit: optional max results (default 20)
-    Returns JSON {results: [{account_name, account_no, bank_name, bank_code, vendor_id}]}
-    """
     if request.method != 'GET':
         return JsonResponse({'message': 'Only GET requests allowed'}, status=400)
 
     q = (request.GET.get('q') or '').strip()
-    vendor_id = (request.GET.get('vendor_id') or '').strip()
     try:
-        limit = int(request.GET.get('limit') or 20)
+        limit = int(request.GET.get('limit') or 200)
     except Exception:
-        limit = 20
-
-    if not q or len(q) < 2:
-        return JsonResponse({'results': []})
+        limit = 200
 
     try:
         qs = BankDetails.objects.all()
-        # Search by account_name icontains
-        qs = qs.filter(account_name__icontains=q)
-
+        if q:  # only filter if a search term is provided
+            qs = qs.filter(account_name__icontains=q)
         qs = qs.values('account_name', 'account_no', 'bank_name', 'bank_code', 'vendor_id')[:limit]
-        print('results' , qs)
         return JsonResponse({'results': list(qs)})
     except Exception as e:
         return JsonResponse({'message': f'Error: {e}'}, status=500)
-
 
 
 
@@ -1710,6 +1681,9 @@ def transaction_history_json(request):
         start_date = format_date(start_date_raw)
         end_date = format_date(end_date_raw)
 
+        if not start_date or not end_date:
+            return JsonResponse({'success': False, 'message': 'Invalid date format. Use dd-mm-YYYY'}, status=400)
+
         # Filter only by date (ignoring time)
         qs = ProcessedDeposits.objects.filter(
             timestamp__date__range=(start_date, end_date)
@@ -1722,13 +1696,15 @@ def transaction_history_json(request):
 
         rows = list(values)
 
-        # Format timestamp to a simple date (if you only want the date in the JSON too)
+        # Format timestamp and convert status
+        status_labels = {0: 'Pending', 1: 'Success', 2: 'Failed'}
         for r in rows:
             ts = r.get('timestamp')
             try:
-                r['timestamp'] = ts.strftime('%Y-%m-%d') if ts else ''
+                r['timestamp'] = ts.strftime('%Y-%m-%d %H:%M:%S') if ts else ''
             except Exception:
                 r['timestamp'] = str(ts) if ts else ''
+            r['status'] = status_labels.get(r.get('status'), 'Unknown')
 
         return JsonResponse({'success': True, 'results': rows})
 
@@ -1737,13 +1713,7 @@ def transaction_history_json(request):
 
 
 def export_history_filtered(request):
-    """Export filtered transaction history as an Excel file (XLSX).
-    Reuses the same filter semantics as get_history_search_results.
-    Accepts query params:
-      - filter_options
-      - search_params
-      - start_date, end_date (dd-mm-YYYY)
-    """
+    """Export filtered transaction history as an Excel file (XLSX)."""
     try:
         if request.method != 'GET':
             return HttpResponse('Only GET requests are allowed', status=405)
@@ -1756,13 +1726,14 @@ def export_history_filtered(request):
         qs = ProcessedDeposits.objects.exclude(status=2)
 
         # Date range filter
-        try:
-            if start_date_raw and end_date_raw:
+        if start_date_raw and end_date_raw:
+            try:
                 start_date = format_date(start_date_raw)
                 end_date = format_date(end_date_raw)
-                qs = qs.filter(timestamp__range=(start_date, end_date))
-        except Exception:
-            pass
+                if start_date and end_date:
+                    qs = qs.filter(timestamp__date__range=(start_date, end_date))
+            except Exception:
+                pass
 
         # Field-based filters
         if field_option and search_params:
@@ -1802,6 +1773,7 @@ def export_history_filtered(request):
             'invoiceid',
             'timestamp',
             'transaction_date',
+            'transaction_ref',
             'vendorid',
             'vendorname',
             'project__project_name',
@@ -1811,6 +1783,7 @@ def export_history_filtered(request):
         )
 
         df = pd.DataFrame.from_records(values)
+        
         # Normalize/format columns
         if not df.empty:
             # Timestamp to string
@@ -1818,38 +1791,58 @@ def export_history_filtered(request):
                 df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce').dt.strftime('%Y-%m-%d %H:%M:%S')
             except Exception:
                 pass
+            
             # Status to labels
             status_labels = {0: 'Pending', 1: 'Success', 2: 'Failed'}
             try:
                 df['status'] = df['status'].map(status_labels).fillna('Unknown')
             except Exception:
                 pass
+        else:
+            # Create empty dataframe with columns if no data
+            df = pd.DataFrame(columns=[
+                'amount', 'invoiceid', 'timestamp', 'transaction_date', 'transaction_ref',
+                'vendorid', 'vendorname', 'project__project_name', 'batch_identifier', 'status', 'processed_by'
+            ])
 
         # Reorder and rename columns for readability
         desired_cols = [
-            'amount', 'invoiceid', 'timestamp', 'transaction_date', 'vendorid', 'vendorname',
-            'project__project_name', 'batch_identifier', 'status', 'processed_by'
+            'amount', 'invoiceid', 'timestamp', 'transaction_date', 'transaction_ref', 
+            'vendorid', 'vendorname', 'project__project_name', 'batch_identifier', 'status', 'processed_by'
         ]
         for col in desired_cols:
             if col not in df.columns:
                 df[col] = ''
+        
         df = df[desired_cols]
         df.columns = [
-            'Amount', 'Payment Number', 'Posting Date/Time', 'Transaction Date', 'Beneficiary ID', 'Beneficiary Name',
-            'Project', 'Batch', 'Status', 'Processed By'
+            'Amount', 'Payment Number', 'Posting Date/Time', 'Transaction Date', 'Transaction Ref',
+            'Beneficiary ID', 'Beneficiary Name', 'Project', 'Batch', 'Status', 'Processed By'
         ]
 
         # Write to in-memory buffer
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine='xlsxwriter', options={'remove_timezone': True}) as writer:
-            sheet_name = 'Filtered History'
+            sheet_name = 'Transaction History'
             df.to_excel(writer, index=False, sheet_name=sheet_name)
+            
+            # Format the workbook
+            workbook = writer.book
+            worksheet = writer.sheets[sheet_name]
+            header_format = workbook.add_format({
+                'bg_color': '#183660',
+                'font_color': 'white',
+                'bold': True,
+                'border': 1
+            })
+            for col_num, value in enumerate(df.columns.values):
+                worksheet.write(0, col_num, value, header_format)
 
         # Build filename
         if start_date_raw and end_date_raw:
-            fname = f"Filtered_Transaction_History_{start_date_raw}_{end_date_raw}.xlsx"
+            fname = f"Transaction_History_{start_date_raw}_{end_date_raw}.xlsx"
         else:
-            fname = "Filtered_Transaction_History.xlsx"
+            fname = "Transaction_History.xlsx"
 
         resp = HttpResponse(
             buffer.getvalue(),
@@ -1858,13 +1851,12 @@ def export_history_filtered(request):
         resp['Content-Disposition'] = f'attachment; filename="{fname}"'
         return resp
     except Exception as e:
-        return HttpResponse(f'Error exporting filtered history: {e}', status=500)
-
+        print(f"Excel export error: {e}")
+        return HttpResponse(f'Error exporting to Excel: {e}', status=500)
 
 
 def export_history_filtered_json(request):
-    """Return filtered transaction history as JSON rows, reusing the same
-    semantics as export_history_filtered. This enables client-side PDF export.
+    """Return filtered transaction history as JSON rows for client-side PDF export.
     Query params: filter_options, search_params, start_date, end_date (dd-mm-YYYY)
     """
     try:
@@ -1879,13 +1871,14 @@ def export_history_filtered_json(request):
         qs = ProcessedDeposits.objects.exclude(status=2)
 
         # Date range
-        try:
-            if start_date_raw and end_date_raw:
+        if start_date_raw and end_date_raw:
+            try:
                 start_date = format_date(start_date_raw)
                 end_date = format_date(end_date_raw)
-                qs = qs.filter(timestamp__range=(start_date, end_date))
-        except Exception:
-            pass
+                if start_date and end_date:
+                    qs = qs.filter(timestamp__date__range=(start_date, end_date))
+            except Exception:
+                pass
 
         # Field filters
         if field_option and search_params:
@@ -1933,17 +1926,21 @@ def export_history_filtered_json(request):
             'processed_by',
             'project__project_name',
         )
+        
         rows = list(values)
+        status_labels = {0: 'Pending', 1: 'Success', 2: 'Failed'}
+        
         for r in rows:
             ts = r.get('timestamp')
             try:
                 r['timestamp'] = ts.strftime('%Y-%m-%d %H:%M:%S') if ts else ''
             except Exception:
                 r['timestamp'] = str(ts) if ts else ''
+            r['status'] = status_labels.get(r.get('status'), 'Unknown')
+        
         return JsonResponse({'success': True, 'results': rows})
     except Exception as e:
         return JsonResponse({'success': False, 'message': f'Error exporting filtered JSON: {e}'}, status=500)
-
 
 @login_required(login_url='/')
 def source_bank_details(request):
@@ -1985,3 +1982,5 @@ def edit_source_bank(request, pk: int):
         form = SourceBankForm(instance=bank)
 
     return render(request, 'edit-source-bank.html', {'form': form, 'is_edit': True})
+
+

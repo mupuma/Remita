@@ -13,6 +13,7 @@ urlpatterns = [
     path('history/', views.transaction_history, name='transaction-history'),
     path('download/', views.transaction_history_xls),
     path('download/json/', views.transaction_history_json, name='transaction-history-json'),
+    path('transaction-history-json/', views.transaction_history_json, name='transaction-history-json-alt'),
     path('history-export/', views.export_history_filtered, name='history-export'),
     path('account_number/', views.checkAccNumber, name='check-account-number'),
 
