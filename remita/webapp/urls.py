@@ -34,6 +34,7 @@ urlpatterns = [
     path('source-banks/', views.source_bank_details, name='source-bank-details'),
     path('source-banks/add/', views.add_source_bank, name='add-source-bank'),
     path('source-banks/<int:pk>/edit/', views.edit_source_bank, name='edit-source-bank'),
+    path('source-bank-details/', views.source_bank_details_api, name='source-bank-details-api'),
 
     path('search/', views.get_search_results, name='search-transactions'),
     path('history-search/', views.get_history_search_results, name='search-transactions-history'),

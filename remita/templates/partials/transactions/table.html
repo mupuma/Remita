@@ -315,6 +315,7 @@
                         <div class="search-bar">
                             <select id="filter-options">
                                 <option value="">All Filters</option>
+                                <option value="project_name">Project Name</option>
                                 <option value="amount">Amount</option>
                                 <option value="date">Date</option>
                                 <option value="invoice_id">Invoice Number</option>
@@ -355,7 +356,12 @@
                         <th scope="col">Payment Number</th>
                         <th scope="col">Reference</th>
                         <th scope="col">Beneficiary ID</th>
+                        <th scope="col">Beneficiary Name</th>
                         <th scope="col">Beneficiary Account</th>
+                        <th scope="col">Beneficiary Bank</th>
+                        <th scope="col">Bank Code</th>
+                        <th scope="col">Source Account</th>
+                        <th scope="col">Source Bank</th>
                         <th scope="col">Actions</th>
                     </tr>
                 </thead>
@@ -363,7 +369,7 @@
                     {% csrf_token %}
                     {% if transaction_info and vendor_info %}
                         {% for transaction in transaction_info %}
-                            <tr id="{{ transaction.IDINVC }}">
+                            <tr id="{{ transaction.IDINVC }}" class="transaction-row">
                                 <td>
                                     <input type="checkbox" name="transaction" class="custom-checkbox"
                                            value="{{ transaction.IDINVC }}" disabled>
@@ -373,6 +379,7 @@
                                 <td>{{ transaction.IDINVC }}</td>
                                 <td>{{ transaction.REFERENCE }}</td>
                                 <td>{{ transaction.IDVEND }}</td>
+                                <td class="beneficiary-name-cell">—</td>
 
                                 <!-- ✅ Beneficiary Account: lazy-loaded dropdown injected here by JS -->
                                 <td>
@@ -381,6 +388,13 @@
                                          data-transaction="{{ transaction.IDINVC }}">
                                     </div>
                                 </td>
+
+                                <td class="beneficiary-bank-cell">—</td>
+                                <td class="beneficiary-bankcode-cell">—</td>
+
+                                <!-- Source Account Details (fetched from SourceBankDetails) -->
+                                <td class="source-account-cell" data-project="{{ group.project_id }}">—</td>
+                                <td class="source-bank-cell" data-project="{{ group.project_id }}">—</td>
 
                                 <td>
                                     <div class="action-buttons">
@@ -414,7 +428,7 @@
                         {% endfor %}
                     {% else %}
                         <tr>
-                            <td colspan="8" class="text-center py-4">
+                            <td colspan="13" class="text-center py-4">
                                 <div class="text-muted">
                                     <i class="bi bi-inbox display-4 d-block mb-3"></i>
                                     <h5>No transactions found</h5>
@@ -516,33 +530,53 @@
       select.appendChild(opt);
     });
 
-    // On selection: auto-fill hidden fields and enable checkbox
+    // On selection: auto-fill hidden fields, update display cells, and enable checkbox
     select.addEventListener('change', function () {
       const chosen = select.options[select.selectedIndex];
       const hasRealSelection = chosen.value && chosen.value !== '';
 
-      // Only populate hidden fields if a real account is selected
+      // Update display cells in the table row
+      const row = document.getElementById(transactionId);
+      const beneficiaryNameCell = row.querySelector('.beneficiary-name-cell');
+      const beneficiaryBankCell = row.querySelector('.beneficiary-bank-cell');
+      const beneficiaryBankCodeCell = row.querySelector('.beneficiary-bankcode-cell');
+
+      // Only populate hidden fields and display if a real account is selected
       if (hasRealSelection) {
-        hiddenWrapper.querySelector('.account-name-input').value = chosen.dataset.accountName || '';
-        hiddenWrapper.querySelector('.account-no-input').value   = chosen.dataset.accountNo   || '';
-        hiddenWrapper.querySelector('.bank-code-input').value    = chosen.dataset.bankCode    || '';
-        hiddenWrapper.querySelector('.bank-name-input').value    = chosen.dataset.bankName    || '';
+        const accountName = chosen.dataset.accountName || '';
+        const accountNo   = chosen.dataset.accountNo   || '';
+        const bankCode    = chosen.dataset.bankCode    || '';
+        const bankName    = chosen.dataset.bankName    || '';
+
+        hiddenWrapper.querySelector('.account-name-input').value = accountName;
+        hiddenWrapper.querySelector('.account-no-input').value   = accountNo;
+        hiddenWrapper.querySelector('.bank-code-input').value    = bankCode;
+        hiddenWrapper.querySelector('.bank-name-input').value    = bankName;
+
+        // Update the display cells in the table
+        beneficiaryNameCell.textContent = accountName;
+        beneficiaryBankCell.textContent = bankName;
+        beneficiaryBankCodeCell.textContent = bankCode;
 
         console.log('Account selected, enabling checkbox for transaction:', transactionId);
         console.log('Selected account details:', {
-          accountName: chosen.dataset.accountName,
-          accountNo: chosen.dataset.accountNo,
-          bankCode: chosen.dataset.bankCode,
-          bankName: chosen.dataset.bankName
+          accountName: accountName,
+          accountNo: accountNo,
+          bankCode: bankCode,
+          bankName: bankName
         });
 
         enableCheckboxForTransaction(transactionId);
       } else {
-        // Clear hidden fields when placeholder is selected
+        // Clear hidden fields and display cells when placeholder is selected
         hiddenWrapper.querySelector('.account-name-input').value = '';
         hiddenWrapper.querySelector('.account-no-input').value   = '';
         hiddenWrapper.querySelector('.bank-code-input').value    = '';
         hiddenWrapper.querySelector('.bank-name-input').value    = '';
+
+        beneficiaryNameCell.textContent = '—';
+        beneficiaryBankCell.textContent = '—';
+        beneficiaryBankCodeCell.textContent = '—';
 
         console.log('No account selected, disabling checkbox for transaction:', transactionId);
         disableCheckboxForTransaction(transactionId);
@@ -588,8 +622,37 @@
     triggerSelect.addEventListener('focus', doFetch);
   }
 
+  function loadSourceAccountDetails() {
+    document.querySelectorAll('.source-account-cell').forEach(function(cell) {
+      const projectId = cell.getAttribute('data-project');
+      if (!projectId) {
+        cell.textContent = '—';
+        return;
+      }
+
+      fetch(`/remita/source-bank-details/?project_id=${projectId}`)
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data && data.bank_account_number) {
+            cell.textContent = data.bank_account_number;
+            const bankCell = cell.parentElement.querySelector('.source-bank-cell');
+            if (bankCell) {
+              bankCell.textContent = data.bank_name || '—';
+            }
+          } else {
+            cell.textContent = '—';
+          }
+        })
+        .catch(function(err) {
+          console.error('Error loading source account:', err);
+          cell.textContent = '—';
+        });
+    });
+  }
+
   function initAll() {
     document.querySelectorAll('.beneficiary-account').forEach(initBeneficiaryDropdown);
+    loadSourceAccountDetails();
   }
 
   if (document.readyState === 'loading') {

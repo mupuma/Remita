@@ -25,6 +25,19 @@
                     </div>
                 </div>
             </div>
+
+            <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    const today = new Date();
+                    const todayStr = today.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                    
+                    const dp1 = document.getElementById('datepicker1');
+                    const dp2 = document.getElementById('datepicker2');
+                    
+                    if (dp1 && !dp1.value) dp1.value = todayStr;
+                    if (dp2 && !dp2.value) dp2.value = todayStr;
+                });
+            </script>
             <div class="modal-footer border-0">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"
                         aria-label="Close" style="border-radius:50px">

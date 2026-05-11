@@ -1690,8 +1690,17 @@ def transaction_history_json(request):
         ).exclude(status=2)
 
         values = qs.values(
-            'amount', 'invoiceid', 'timestamp', 'transaction_date', 'transaction_ref',
-            'vendorid', 'vendorname', 'batch_identifier', 'status', 'processed_by', 'project__project_name'
+            'project__project_name',
+            'vendorname',
+            'amount',
+            'invoiceid',
+            'timestamp',
+            'transaction_date',
+            'transaction_ref',
+            'vendorid',
+            'batch_identifier',
+            'status',
+            'processed_by',
         )
 
         rows = list(values)
@@ -1806,9 +1815,10 @@ def export_history_filtered(request):
             ])
 
         # Reorder and rename columns for readability
+        # Order: Project, Beneficiary Name, Amount, Payment Number, then rest
         desired_cols = [
-            'amount', 'invoiceid', 'timestamp', 'transaction_date', 'transaction_ref', 
-            'vendorid', 'vendorname', 'project__project_name', 'batch_identifier', 'status', 'processed_by'
+            'project__project_name', 'vendorname', 'amount', 'invoiceid', 'timestamp', 'transaction_date', 'transaction_ref', 
+            'vendorid', 'batch_identifier', 'status', 'processed_by'
         ]
         for col in desired_cols:
             if col not in df.columns:
@@ -1816,8 +1826,8 @@ def export_history_filtered(request):
         
         df = df[desired_cols]
         df.columns = [
-            'Amount', 'Payment Number', 'Posting Date/Time', 'Transaction Date', 'Transaction Ref',
-            'Beneficiary ID', 'Beneficiary Name', 'Project', 'Batch', 'Status', 'Processed By'
+            'Project', 'Beneficiary Name', 'Amount', 'Payment Number', 'Posting Date/Time', 'Transaction Date', 'Transaction Ref',
+            'Beneficiary ID', 'Batch', 'Status', 'Processed By'
         ]
 
         # Write to in-memory buffer
@@ -1914,31 +1924,47 @@ def export_history_filtered_json(request):
         qs = qs.order_by('-timestamp')
 
         values = qs.values(
+            'project__project_name',
+            'vendorname',
             'amount',
             'invoiceid',
             'timestamp',
             'transaction_date',
             'transaction_ref',
             'vendorid',
-            'vendorname',
             'batch_identifier',
             'status',
             'processed_by',
-            'project__project_name',
         )
         
         rows = list(values)
         status_labels = {0: 'Pending', 1: 'Success', 2: 'Failed'}
         
+        # Rename keys to match report column headers for consistency
+        renamed_rows = []
         for r in rows:
             ts = r.get('timestamp')
             try:
-                r['timestamp'] = ts.strftime('%Y-%m-%d %H:%M:%S') if ts else ''
+                timestamp_str = ts.strftime('%Y-%m-%d %H:%M:%S') if ts else ''
             except Exception:
-                r['timestamp'] = str(ts) if ts else ''
-            r['status'] = status_labels.get(r.get('status'), 'Unknown')
+                timestamp_str = str(ts) if ts else ''
+            
+            renamed_row = {
+                'project': r.get('project__project_name'),
+                'beneficiary_name': r.get('vendorname'),
+                'amount': r.get('amount'),
+                'payment_number': r.get('invoiceid'),
+                'posting_datetime': timestamp_str,
+                'transaction_date': r.get('transaction_date'),
+                'transaction_ref': r.get('transaction_ref'),
+                'beneficiary_id': r.get('vendorid'),
+                'batch': r.get('batch_identifier'),
+                'status': status_labels.get(r.get('status'), 'Unknown'),
+                'processed_by': r.get('processed_by'),
+            }
+            renamed_rows.append(renamed_row)
         
-        return JsonResponse({'success': True, 'results': rows})
+        return JsonResponse({'success': True, 'results': renamed_rows})
     except Exception as e:
         return JsonResponse({'success': False, 'message': f'Error exporting filtered JSON: {e}'}, status=500)
 
@@ -1982,5 +2008,33 @@ def edit_source_bank(request, pk: int):
         form = SourceBankForm(instance=bank)
 
     return render(request, 'edit-source-bank.html', {'form': form, 'is_edit': True})
+
+
+@login_required(login_url='/')
+def source_bank_details_api(request):
+    """
+    API endpoint to fetch source bank details by project_id
+    Query Parameters:
+        - project_id: ID of the project
+    Returns:
+        JSON response with bank_account_number and bank_name
+    """
+    try:
+        project_id = request.GET.get('project_id')
+        if not project_id:
+            return JsonResponse({'error': 'project_id parameter is required'}, status=400)
+        
+        source_bank = SourceBankDetails.objects.filter(project_id=project_id).first()
+        if source_bank:
+            return JsonResponse({
+                'bank_account_number': source_bank.bank_account_number,
+                'bank_name': source_bank.bank_name,
+                'bank_code': source_bank.bank_code,
+                'bank_account_name': source_bank.bank_account_name,
+            })
+        else:
+            return JsonResponse({'error': 'No source bank details found for this project'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
 
 

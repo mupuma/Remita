@@ -189,12 +189,12 @@
             <thead>
               <tr>
                 <th></th>
-                <th>Date</th>
+                <th>Project</th>
+                <th>Beneficiary Name</th>
                 <th>Amount</th>
                 <th>Payment Number</th>
                 <th>Beneficiary ID</th>
-                <th>Beneficiary Name</th>
-                <th>Project</th>
+                <th>Date</th>
                 <th>Batch</th>
                 <th>Status</th>
                 <th>Processed By</th>
@@ -206,11 +206,12 @@
               {% for transaction in transaction_info %}
                 <tr>
                   <td></td>
-                  <td>{{ transaction.transaction_date }}</td>
+                  <td>{{ transaction.project.project_name }}</td>
+                  <td>{{ transaction.vendorname }}</td>
                   <td>{{ transaction.amount }}</td>
                   <td data-transaction-ref="{{ transaction.transaction_ref }}">{{ transaction.invoiceid }}</td>
+                  <td>{{ transaction.transaction_date }}</td>
                   <td>{{ transaction.vendorid }}</td>
-                  <td>{{ transaction.vendorname }}</td>
                   <td>{{ transaction.project.project_name }}</td>
                   <td>{{ transaction.batch_identifier }}</td>
                   <td>
